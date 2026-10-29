@@ -1,0 +1,19 @@
+# Wi-Fi credentials / local secrets
+firmware/**/secrets.h
+
+# Local toolchains and Python env
+.venv/
+tools/arduino-cli
+build/
+__pycache__/
+*.pyc
+
+# Local backups, photos and generated test images
+backup/
+log.jpeg
+*.bin
+
+# OS/editor
+.DS_Store
+.vscode/
+.idea/
