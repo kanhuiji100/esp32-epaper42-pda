@@ -48,7 +48,8 @@ readable ID); the driver passes GPIO36 as a dummy MISO to `SPI.begin()`.
 Always back up the full 4 MB flash before replacing the stock firmware:
 
 ```bash
-sudo esptool.py --chip esp32 --port /dev/ttyACM0 --baud 921600 \
+pip install esptool   # or use your distro/venv package
+python -m esptool --chip esp32 --port /dev/ttyACM0 --baud 921600 \
   read-flash 0x0 0x400000 stock-backup.bin
 ```
 
@@ -58,7 +59,7 @@ do not publish it.
 Restore if needed:
 
 ```bash
-sudo esptool.py --chip esp32 --port /dev/ttyACM0 --baud 921600 \
+python -m esptool --chip esp32 --port /dev/ttyACM0 --baud 921600 \
   write-flash 0x0 stock-backup.bin
 ```
 
