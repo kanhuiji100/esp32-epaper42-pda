@@ -130,6 +130,8 @@ static void printHelp() {
   Serial.println("  qr <text>              generate a text QR (UTF-8) and show it");
   Serial.println("  qr wifi <ssid> [pass]  Wi-Fi QR; omit pass for hidden prompt");
   Serial.println("  qr clear               clear QR / show placeholder");
+  Serial.println("  host                   show hostname / mDNS URL");
+  Serial.println("  host <name>            set hostname (a-z 0-9 -, 1-32 chars)");
   Serial.println("  wifi                   current Wi-Fi state");
   Serial.println("  wifi scan              scan visible networks");
   Serial.println("  wifi set               interactive provisioning (password hidden)");
@@ -280,6 +282,23 @@ static void handleLine(const String& raw) {
     lastActivity = millis();
     Serial.println("note saved");
     printStatus();
+    return;
+  }
+
+  if (cmd == "host" || cmd == "hostname") {
+    if (argc == 1) {
+      Serial.printf("host: %s  http://%s.local\n", gHostname.c_str(), gHostname.c_str());
+      return;
+    }
+    String name = args[1];
+    if (name == "set" && argc >= 3) name = args[2];
+    if (hostnameSet(name)) {
+      lastActivity = millis();
+      Serial.printf("host: %s  http://%s.local\n", gHostname.c_str(), gHostname.c_str());
+      Serial.println("DHCP hostname fully applies after reboot; mDNS is immediate.");
+    } else {
+      Serial.println("host: invalid; use 1-32 chars a-z 0-9 -, no leading/trailing -");
+    }
     return;
   }
 

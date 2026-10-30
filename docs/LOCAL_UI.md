@@ -19,6 +19,7 @@ rendered in the browser (the browser only mirrors the device framebuffer).
 ### Home
 
 - Five rows: **时钟 / 记事 / 图片 / 二维码 / 设置**.
+- The status-bar title shows the **device hostname** (default `epaper42`).
 - Icon + Chinese label + inverted selection bar.
 - `↑↓` move, `OK` enter, `Back/Home` return.
 - Menu movement uses a full standard refresh (~1 s) to keep the selection bar and
@@ -64,7 +65,8 @@ rendered in the browser (the browser only mirrors the device framebuffer).
 
 ### Settings
 
-- Wi-Fi SSID, IP, RSSI, free heap, current panel mode, flash size, uptime, web URL.
+- Wi-Fi SSID, IP, RSSI, **hostname**, free heap, current panel mode, flash size,
+  uptime, web URL.
 - Status bar minute updates use a small partial window; a full refresh happens
   every 15 minutes.
 
@@ -92,6 +94,7 @@ python3 tools/gen_font.py
 - `POST /api/key?k=...`, `POST /api/app?name=...`.
 - Note textarea: `GET/POST /api/note`.
 - QR card: `POST /api/qr` (text/Wi-Fi/clear); generation takes ~4.1 s.
+- Hostname card: `GET/POST /api/host`; saves NVS, restarts mDNS and redraws Home.
 - Preview polls every 1.5 s; key/app actions refresh immediately.
 - Buttons are disabled while a refresh is in flight (the server is single
   threaded and a refresh takes 0.58–0.98 s).
@@ -101,7 +104,7 @@ python3 tools/gen_font.py
 - `fb` + `imageFb` + driver `shadow` + HTTP body buffer ≈ 60 KB.
 - QR encode buffers (`qrBuf`/`qrTemp`/`qrCand`) ≈ 12 KB static.
 - Font bitmaps ≈ 270 KB flash.
-- App size ≈ 1.12 MB of the 1.31 MB partition (85%).
+- App size ≈ 1.13 MB of the 1.31 MB partition (86%).
 - NVS note; no LittleFS image/QR persistence yet.
 
 ## Extending

@@ -128,6 +128,26 @@ zone. It stays static (no minute partial updates) until you generate another cod
 or leave the screen. QR content is RAM-only; `qr clear` or reboot drops it. See
 [QRCODE.md](QRCODE.md) for payload details and limits.
 
+## Hostname
+
+| Command | Result |
+|---|---|
+| `host` / `hostname` | show current hostname and `http://<name>.local` |
+| `host <name>` | set hostname (lowercased; 1–32 chars `a-z 0-9 -`) |
+| `host set <name>` | same, explicit form |
+
+```text
+> host pda42
+mDNS: http://pda42.local
+host: pda42  http://pda42.local
+DHCP hostname fully applies after reboot; mDNS is immediate.
+```
+
+The Home status bar and Settings screen update immediately. mDNS is restarted, so
+`http://pda42.local` works right away on mDNS-capable clients; the DHCP hostname
+used by router local DNS is applied after the next boot/reconnect. The name is
+stored in NVS namespace `net`, key `host`.
+
 ## Panel / system
 
 | Command | Result |

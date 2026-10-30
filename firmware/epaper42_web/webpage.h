@@ -31,7 +31,8 @@ main{max-width:1040px;margin:0 auto;padding:16px;display:grid;grid-template-colu
 .apps button{padding:7px 10px;font-size:13px}
 .note-row{display:grid;grid-template-columns:1fr auto;gap:10px;margin-top:12px;align-items:start}
 #noteText{width:100%;height:74px;padding:8px;border:1px solid var(--line);border-radius:8px;font:14px/1.5 inherit;resize:vertical}
-.qr{grid-column:1/-1}
+.qr,.host{grid-column:1/-1}
+.host input{padding:8px;border:1px solid var(--line);border-radius:8px;font:14px/1.5 inherit;min-width:220px}
 .qr-grid{display:grid;grid-template-columns:1fr 1fr;gap:18px}
 .qr-grid label{display:block;margin:8px 0 4px}
 .qr-grid textarea,.qr-grid input{width:100%;padding:8px;border:1px solid var(--line);border-radius:8px;font:14px/1.5 inherit}
@@ -115,6 +116,16 @@ button:disabled{opacity:.45;cursor:default}
     </div>
   </section>
 
+  <section class="card host">
+    <h2>设备主机名</h2>
+    <div class="row">
+      <input id="hostName" maxlength="32" placeholder="epaper42">
+      <button id="btnHost" class="primary">保存主机名</button>
+      <a id="hostLink" class="hint" href="http://epaper42.local" target="_blank" rel="noopener">http://epaper42.local</a>
+    </div>
+    <p class="hint">1–32 位小写字母/数字/连字符，不能以 - 开头或结尾。保存后主菜单左上角和 mDNS 立即更新；DHCP 主机名在重启后完全生效。路由器支持本地 DNS 时也可直接用主机名访问。</p>
+  </section>
+
   <section class="card">
     <canvas id="preview" width="400" height="300"></canvas>
     <div id="drop">拖入图片，或点击选择文件<input id="file" type="file" accept="image/*" hidden></div>
@@ -190,7 +201,7 @@ const remote=$('remoteScreen'), rctx=remote.getContext('2d');
 let remoteBusy=false, remoteSeq=0;
 function setRemoteBusy(b){
   remoteBusy=b;
-  document.querySelectorAll('.pad button,.apps button,#btnQrText,#btnQrWifi,#btnQrClear').forEach(x=>{x.disabled=b;});
+  document.querySelectorAll('.pad button,.apps button,#btnQrText,#btnQrWifi,#btnQrClear,#btnHost').forEach(x=>{x.disabled=b;});
 }
 function drawRemote(buf){
   const out=rctx.createImageData(W,H);
@@ -276,6 +287,34 @@ $('btnQrWifi').addEventListener('click',()=>{
   qrAction('/api/qr?type=wifi&ssid='+encodeURIComponent(s)+'&pass='+encodeURIComponent(p),null,'生成 WiFi 二维码');
 });
 $('btnQrClear').addEventListener('click',()=>qrAction('/api/qr?type=clear',null,'清空二维码'));
+
+function updateHostUi(h){
+  $('hostName').value=h;
+  $('hostLink').textContent='http://'+h+'.local';
+  $('hostLink').href='http://'+h+'.local';
+}
+async function loadHost(){
+  try{
+    const r=await fetch('/api/host',{cache:'no-store'});
+    const j=await r.json();
+    if(j.host) updateHostUi(j.host);
+  }catch(e){}
+}
+$('btnHost').addEventListener('click',async()=>{
+  if(remoteBusy) return;
+  const name=$('hostName').value.trim().toLowerCase();
+  if(!/^[a-z0-9](?:[a-z0-9-]{0,30}[a-z0-9])?$/.test(name)){
+    log('主机名格式不对：1–32 位 a-z/0-9/-，首尾不能是 -','warn'); return;
+  }
+  setRemoteBusy(true);
+  try{
+    const j=await api('/api/host?name='+encodeURIComponent(name));
+    updateHostUi(j.host);
+    log('主机名已保存：'+j.host+' · '+j.mdns,'ok');
+    await refreshRemote(true);
+  }catch(e){ log('主机名保存失败：'+e.message,'err'); }
+  finally{ setRemoteBusy(false); }
+});
 
 async function loadNote(){
   try{
@@ -407,6 +446,7 @@ async function poll(){
 log('就绪：用方向键操作设备本地 UI，或拖入图片上传。');
 refreshRemote(true);
 loadNote();
+loadHost();
 setInterval(()=>refreshRemote(false),1500);
 poll();
 </script>

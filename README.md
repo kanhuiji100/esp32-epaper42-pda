@@ -28,6 +28,9 @@ The project also documents how the stock Waveshare loader was sped up from
   generate text/Wi-Fi QR codes, inspect status and print an ASCII screen preview.
 - **Max-contrast QR** — text or `WIFI:` join code, drawn with the 50 Hz 4.14 s
   waveform and a 4-module quiet zone.
+- **Custom hostname** — default `epaper42`; change it from the web card, serial
+  console or API. The Home status bar and Settings show it, and mDNS serves
+  `http://<hostname>.local` immediately.
 
 ## Measured results
 
@@ -51,7 +54,7 @@ The project also documents how the stock Waveshare loader was sped up from
 |---|---|
 | ![Local home](docs/images/ui_home.png) | ![Clock](docs/images/ui_clock.png) |
 
-| QR screen (HQ waveform) | Web UI with QR card |
+| QR screen (HQ waveform) | Web UI: QR + hostname cards |
 |---|---|
 | ![QR](docs/images/ui_qr.png) | ![Web UI](docs/images/ui_qr_page.png) |
 
@@ -139,8 +142,10 @@ HTTP server on :80
 local UI ready
 ```
 
-Open the printed IP (or `http://epaper42.local` on mDNS-capable networks).
-The top of the page is the **remote control**; below it is image upload.
+Open the printed IP, or the default mDNS name `http://epaper42.local` on
+mDNS-capable networks. The **设备主机名** card lets you change the hostname; the
+same can be done from serial with `host <name>`. The new name is served as
+`http://<name>.local` immediately (DHCP hostname after reboot).
 
 ### 4. Operate
 
@@ -151,6 +156,8 @@ The top of the page is the **remote control**; below it is image upload.
   stores the text in NVS.
 - **Image**: choose an image, pick a refresh mode, click “全屏刷新”; the device
   switches to the image viewer. Back/Home returns to the menu.
+- **Hostname**: the **设备主机名** card (or serial `host <name>`) updates the Home
+  status bar, Settings and mDNS. Open `http://<name>.local`; 1–32 chars `a-z 0-9 -`.
 - **Serial console**: 115200 baud, `help` for commands. `wifi set` is interactive,
   `key`/`app`/`note` simulate input, `screen` prints an ASCII preview. See
   [docs/SERIAL_CONSOLE.md](docs/SERIAL_CONSOLE.md).
@@ -235,6 +242,10 @@ curl -X POST --data-binary '今天要做的三件事…' \
 # full image: mode=fast|std|hq, 15000 bytes
 curl -X POST --data-binary @frame.bin 'http://<ip>/api/full?mode=fast'
 
+# hostname (shown on Home/Settings; mDNS restarts immediately)
+curl -X POST 'http://<ip>/api/host?name=pda42'
+curl http://<ip>/api/host
+
 # QR: text, Wi-Fi, clear (HQ 50 Hz, ~4.1 s)
 curl -X POST --data-binary 'hello QR' 'http://<ip>/api/qr?type=text'
 curl -X POST 'http://<ip>/api/qr?type=wifi&ssid=MyRouter&pass=my%20pass'
@@ -256,7 +267,10 @@ curl -X POST http://<ip>/api/refresh
 - **GB2312 subset font.** Emoji and rare Chinese characters show a box.
 - **QR is limited to version 13 (69 modules).** ECC M, 4-module quiet zone; longer
   payloads return HTTP 400. The QR screen always uses the 4.14 s HQ waveform.
-- **No OTA.** The app is at 85% of the 1.31 MB partition; an OTA layout needs a
+- **Hostname:** 1–32 lowercase letters/digits/hyphens, no leading/trailing `-`.
+  mDNS changes immediately; the DHCP hostname is applied on the next boot. Some
+  clients need Avahi/Bonjour to resolve `.local`.
+- **No OTA.** The app is at 86% of the 1.31 MB partition; an OTA layout needs a
   smaller font or a custom partition table.
 - **Panel is powered off after 120 s idle** (except the clock screen) to save
   power; the ESP32 stays awake for HTTP. Deep sleep/wake is future work.
@@ -282,7 +296,10 @@ PDA 项目。ESP32 自己维护画布并渲染主菜单、时钟、记事、图�
 - 整屏图片从原厂约 **8.6 s** 降到 **0.61 s**（设备端），浏览器往返 **0.7–0.8 s**。
 - 菜单/切页/记事翻页用标准全刷约 **1.0 s**；时钟**每分钟整分全刷一次**。
 - 老 4.2 的局部波形不能做 1 Hz 时钟：约 35 秒后整屏发灰，因此时钟不显示秒。
-- 串口控制台 115200：`wifi set` 配网、`key` 模拟按键、`qr`/`qr wifi` 生成二维码。
+- 串口控制台 115200：`wifi set` 配网、`key` 模拟按键、`qr`/`qr wifi` 生成二维码、
+  `host` 修改主机名。
+- 主机名默认 `epaper42`；网页“设备主机名”卡片或串口 `host <name>` 可改，主菜单
+  左上角/设置页同步显示，mDNS 立即变为 `http://<name>.local`；DHCP 主机名重启生效。
 - 二维码：网页或串口输入文字/SSID+密码，自动切到二维码页，用 50Hz 高清全刷
   （约 4.1s）保证最大对比度；二维码页保持静止，不做局部刷新。
 - 记事存 NVS；图片和二维码只在 RAM；暂未接实体按键，由网页/串口操作。

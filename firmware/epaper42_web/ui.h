@@ -16,6 +16,7 @@ bool setQr(const String& payload, const String& type);
 bool setWifiQr(const String& ssid, const String& pass);
 void clearQr();
 String qrSummary();
+void setHostnameLabel(const String& name, bool redraw);
 void onClear();
 
 const uint8_t* screen();

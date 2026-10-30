@@ -6,7 +6,7 @@ console at `/` and a small JSON/binary API. All responses include
 request.
 
 Base URL: `http://<device-ip>/` (the serial log prints the DHCP IP; mDNS is
-`epaper42.local` when available).
+`http://<hostname>.local`, default `epaper42.local`).
 
 For USB serial provisioning and console commands, see
 [SERIAL_CONSOLE.md](SERIAL_CONSOLE.md).
@@ -25,7 +25,9 @@ Partial images use `(w / 8) × h` bytes; `x` and `w` must be multiples of 8.
 | Method | Path | Body | Result |
 |---|---|---|---|
 | GET | `/` | — | remote console HTML |
-| GET | `/api/status` | — | device status JSON |
+| GET | `/api/status` | — | device status JSON (includes hostname) |
+| GET | `/api/host` | — | current hostname + mDNS URL |
+| POST | `/api/host?name=...` | — | set hostname; restarts mDNS, returns host/URL |
 | GET | `/api/screen` | — | current framebuffer, 15,000 bytes |
 | GET | `/api/ui` | — | local-UI state JSON |
 | GET | `/api/qr` | — | QR state (same fields as `/api/ui`) |
@@ -45,10 +47,32 @@ Partial images use `(w / 8) × h` bytes; `x` and `w` must be multiples of 8.
 ### `GET /api/status`
 
 ```json
-{"ok":1,"ip":"192.168.1.50","heap":180000,"powered":1,"mode":"part"}
+{"ok":1,"ip":"192.168.1.50","host":"epaper42","heap":180000,"powered":1,"mode":"part"}
 ```
 
 `mode` is `none|std|hq|part`.
+
+### Hostname
+
+```bash
+# read
+curl http://<ip>/api/host
+
+# set (lowercased; 1-32 chars a-z/0-9/-, no leading/trailing -)
+curl -X POST 'http://<ip>/api/host?name=pda42'
+```
+
+Response:
+
+```json
+{"ok":1,"host":"pda42","mdns":"http://pda42.local"}
+```
+
+The mDNS responder is restarted immediately, so `http://pda42.local` works as
+soon as the request returns. `WiFi.setHostname()` is also updated; the DHCP
+hostname is fully applied after the next reboot/reconnect. The Home status bar
+and Settings screen are redrawn when they are visible. Invalid names return HTTP
+400 and leave the current hostname unchanged.
 
 ### `GET /api/ui`
 
@@ -60,6 +84,10 @@ Partial images use `(w / 8) × h` bytes; `x` and `w` must be multiples of 8.
   "page": 0,
   "pages": 2,
   "hasImage": 0,
+  "qr": 0,
+  "qrType": "",
+  "qrModules": 0,
+  "host": "epaper42",
   "ms": 984,
   "refresh": 959,
   "ip": "192.168.1.50",

@@ -1,5 +1,15 @@
 # Changelog
 
+## v0.4.0 — 2026-10-30
+
+- Custom device hostname, default `epaper42`; stored in NVS namespace `net`.
+- Home status bar and Settings show the hostname; web card and serial `host`
+  command update it.
+- `GET/POST /api/host`; mDNS restarts immediately so `http://<name>.local` works;
+  DHCP hostname applies after reboot.
+- Validation: 1–32 chars `a-z 0-9 -`, no leading/trailing hyphen.
+- Docs and screenshots updated; firmware ~86%.
+
 ## v0.3.0 — 2026-10-30
 
 - New **QR** screen: text QR and Wi-Fi join QR (`WIFI:T:WPA;S:...;P:...;;`).

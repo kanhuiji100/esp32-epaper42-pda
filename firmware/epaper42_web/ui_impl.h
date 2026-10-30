@@ -23,6 +23,7 @@ App app = App::HOME;
 int menuSel = 0;
 int notePage = 0;
 String note;
+String hostLabel = "epaper42";
 bool hasImage = false;
 uint8_t imageFb[IMGSZ];
 String qrPayload, qrType;
@@ -315,7 +316,7 @@ const char* MENU[] = {"时钟", "记事", "图片", "二维码", "设置"};
 
 void drawHome() {
   fillRect(0, 0, W, H, PAPER);
-  drawStatus("PDA");
+  drawStatus(hostLabel.c_str());
   drawText(20, 34, "主菜单", 2, INK);
   drawText(300, 42, "PDA", 1, INK);
   const int top = 78, ih = 36;
@@ -403,6 +404,7 @@ void drawSettingsApp() {
   line(String("WiFi  ") + (WiFi.status() == WL_CONNECTED ? WiFi.SSID() : String("未连接")));
   line(String("IP    ") + WiFi.localIP().toString());
   line(String("RSSI  ") + String(WiFi.RSSI()) + " dBm");
+  line(String("HOST  ") + hostLabel);
   line(String("HEAP  ") + String(ESP.getFreeHeap() / 1024) + " KB");
   line(String("MODE  ") + panel42::modeName());
   line(String("FLASH ") + String(ESP.getFlashChipSize() / 1024 / 1024) + " MB");
@@ -565,6 +567,7 @@ String stateJson() {
   s += ",\"qr\":"; s += (qrValid ? 1 : 0);
   s += ",\"qrType\":\""; s += qrType; s += "\"";
   s += ",\"qrModules\":"; s += qrSize;
+  s += ",\"host\":\""; s += hostLabel; s += "\"";
   s += ",\"ms\":"; s += (unsigned long)lastT.total;
   s += ",\"refresh\":"; s += (unsigned long)lastT.refresh;
   s += ",\"ip\":\""; s += WiFi.localIP().toString(); s += "\"";
@@ -642,6 +645,14 @@ panel42::Timings setNote(const String& text) {
   notePage = 0;
   renderAndCommit(true);
   return lastT;
+}
+
+void setHostnameLabel(const String& name, bool redraw) {
+  if (name.length() == 0) return;
+  hostLabel = name;
+  if (redraw && (app == App::HOME || app == App::SETTINGS) && panel42::isPowered()) {
+    renderAndCommit(true);
+  }
 }
 
 void setImage(const uint8_t* img, bool alreadyOnScreen) {

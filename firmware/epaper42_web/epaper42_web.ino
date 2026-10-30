@@ -26,7 +26,11 @@ WiFiServer server(80);
 static uint8_t rxbuf[panel42::IMGSZ];
 static uint32_t lastActivity = 0;
 Preferences wifiPrefs;
+Preferences hostPrefs;
 static bool netReady = false;
+static String gHostname = "epaper42";
+static bool hostnameSet(const String& name);   // defined with the Wi-Fi helpers
+
 
 // ---------------- HTTP helpers ----------------
 static String readLine(WiFiClient& c, uint32_t timeoutMs = 2000) {
@@ -220,8 +224,8 @@ static void handleClient(WiFiClient& c) {
     if (path == "/api/status") {
       char buf[256];
       snprintf(buf, sizeof(buf),
-               "{\"ok\":1,\"ip\":\"%s\",\"heap\":%lu,\"powered\":%d,\"mode\":\"%s\"}",
-               WiFi.localIP().toString().c_str(),
+               "{\"ok\":1,\"ip\":\"%s\",\"host\":\"%s\",\"heap\":%lu,\"powered\":%d,\"mode\":\"%s\"}",
+               WiFi.localIP().toString().c_str(), gHostname.c_str(),
                (unsigned long)ESP.getFreeHeap(),
                panel42::isPowered() ? 1 : 0,
                panel42::modeName());
@@ -242,6 +246,14 @@ static void handleClient(WiFiClient& c) {
     }
     if (path == "/api/qr") {
       sendJson(c, 200, ui::stateJson());
+      return;
+    }
+    if (path == "/api/host") {
+      char buf[192];
+      snprintf(buf, sizeof(buf),
+               "{\"ok\":1,\"host\":\"%s\",\"mdns\":\"http://%s.local\"}",
+               gHostname.c_str(), gHostname.c_str());
+      sendJson(c, 200, buf);
       return;
     }
     sendJson(c, 404, "{\"ok\":0,\"err\":\"not found\"}");
@@ -294,6 +306,26 @@ static void handleClient(WiFiClient& c) {
     ui::setNote(text);
     lastActivity = millis();
     sendJson(c, 200, ui::stateJson());
+    return;
+  }
+
+  if (path == "/api/host") {
+    String name;
+    if (!getParamStr(query, "name", name)) {
+      sendJson(c, 400, "{\"ok\":0,\"err\":\"need name\"}");
+      return;
+    }
+    name = urlDecode(name);
+    if (!hostnameSet(name)) {
+      sendJson(c, 400, "{\"ok\":0,\"err\":\"hostname must be 1-32 chars: a-z 0-9 -, no leading/trailing -\"}");
+      return;
+    }
+    lastActivity = millis();
+    char buf[192];
+    snprintf(buf, sizeof(buf),
+             "{\"ok\":1,\"host\":\"%s\",\"mdns\":\"http://%s.local\"}",
+             gHostname.c_str(), gHostname.c_str());
+    sendJson(c, 200, buf);
     return;
   }
 
@@ -455,14 +487,50 @@ static bool wifiLoadCredentials(String& ssid, String& pass) {
   return true;
 }
 
+static String normalizeHost(String h) {
+  h.trim();
+  h.toLowerCase();
+  if (h.length() == 0 || h.length() > 32) return "";
+  for (size_t i = 0; i < h.length(); i++) {
+    char c = h[i];
+    if (!((c >= 'a' && c <= 'z') || (c >= '0' && c <= '9') || c == '-')) return "";
+  }
+  if (h[0] == '-' || h[h.length() - 1] == '-') return "";
+  return h;
+}
+
+static void startMdns() {
+  MDNS.end();
+  if (MDNS.begin(gHostname.c_str())) {
+    MDNS.addService("http", "tcp", 80);
+    Serial.printf("mDNS: http://%s.local\n", gHostname.c_str());
+  } else {
+    Serial.println("mDNS: begin failed");
+  }
+}
+
+static void hostnameLoad() {
+  hostPrefs.begin("net", false);
+  String h = normalizeHost(hostPrefs.getString("host", ""));
+  if (h.length() > 0) gHostname = h;
+}
+
+static bool hostnameSet(const String& name) {
+  String h = normalizeHost(name);
+  if (h.length() == 0) return false;
+  gHostname = h;
+  hostPrefs.begin("net", false);
+  hostPrefs.putString("host", h);
+  WiFi.setHostname(gHostname.c_str());
+  if (netReady) startMdns();
+  ui::setHostnameLabel(gHostname, true);
+  return true;
+}
+
 static void startNetworkServices() {
   server.begin();
   server.setNoDelay(true);
-  MDNS.end();
-  if (MDNS.begin("epaper42")) {
-    MDNS.addService("http", "tcp", 80);
-    Serial.println("mDNS: http://epaper42.local");
-  }
+  startMdns();
   configTzTime("CST-8", "ntp.aliyun.com", "cn.pool.ntp.org", "pool.ntp.org");
   netReady = true;
   Serial.print("IP: "); Serial.println(WiFi.localIP());
@@ -484,7 +552,7 @@ static bool wifiStart(const String& ssid, const String& pass, bool save) {
   delay(120);
   WiFi.mode(WIFI_STA);
   WiFi.setSleep(false);
-  WiFi.setHostname("epaper42");
+  WiFi.setHostname(gHostname.c_str());
   WiFi.begin(ssid.c_str(), pass.c_str());
   uint32_t t0 = millis();
   while (WiFi.status() != WL_CONNECTED && millis() - t0 < 20000) {
@@ -517,6 +585,9 @@ void setup() {
   Serial.printf("boot clear: total=%lu init=%lu data=%lu refresh=%lu\n",
                 (unsigned long)bt.total, (unsigned long)bt.init,
                 (unsigned long)bt.data, (unsigned long)bt.refresh);
+  hostnameLoad();
+  ui::setHostnameLabel(gHostname, false);
+  Serial.printf("hostname: %s (http://%s.local)\n", gHostname.c_str(), gHostname.c_str());
   WiFi.persistent(false);
   String ssid, pass;
   bool fromNvs = wifiLoadCredentials(ssid, pass);
