@@ -23,6 +23,8 @@ The project also documents how the stock Waveshare loader was sped up from
 - **Partial updates** — 0.58 s window updates for status bar / small changes.
 - **Persistent notes** — stored in NVS and rendered locally.
 - **No vendor cloud/app** — Wi-Fi HTTP only, all rendering on-device.
+- **Serial console** — provision Wi-Fi, simulate D-pad/keys, switch apps, edit notes,
+  inspect status and print an ASCII screen preview over USB serial.
 
 ## Measured results
 
@@ -83,16 +85,32 @@ arduino-cli core update-index
 arduino-cli core install esp32:esp32@2.0.17
 ```
 
-### 2. Wi-Fi secrets
+### 2. Wi-Fi provisioning
+
+The firmware can be flashed **without** `secrets.h` and provisioned entirely over
+the USB serial console. After flashing, open the port at **115200** and type:
+
+```text
+wifi set
+SSID: <your 2.4 GHz SSID>
+Password (hidden): ********
+WiFi: saved to NVS
+IP: 192.168.x.x
+```
+
+Credentials are saved in NVS namespace `wifi` and are reused on every boot. The
+password is not echoed; `wifi scan` lists visible 2.4 GHz networks first.
+
+If you prefer compile-time defaults, copy the example:
 
 ```bash
 cd firmware/epaper42_web
-cp secrets.example.h secrets.h
-# edit secrets.h with your SSID / password
+cp secrets.example.h secrets.h   # edit WIFI_SSID / WIFI_PASSWORD
 ```
 
-`secrets.h` is git-ignored. If it is missing, the sketch falls back to
-`YOUR_SSID` / `YOUR_PASSWORD` so CI and `arduino-cli compile` still work.
+`secrets.h` is git-ignored; NVS credentials take precedence over it. The
+placeholder fallback also keeps CI and `arduino-cli compile` working without any
+secrets file.
 
 ### 3. Build and flash
 
@@ -110,7 +128,7 @@ Serial monitor at **115200**:
 === E-Paper 4.2 fast web console ===
 boot clear: total=1248 init=263 data=26 refresh=959
 WiFi..........
-IP: 192.168.1.143
+IP: 192.168.1.50
 mDNS: http://epaper42.local
 HTTP server on :80
 local UI ready
@@ -128,6 +146,9 @@ The top of the page is the **remote control**; below it is image upload.
   stores the text in NVS.
 - **Image**: choose an image, pick a refresh mode, click “全屏刷新”; the device
   switches to the image viewer. Back/Home returns to the menu.
+- **Serial console**: 115200 baud, `help` for commands. `wifi set` is interactive,
+  `key`/`app`/`note` simulate input, `screen` prints an ASCII preview. See
+  [docs/SERIAL_CONSOLE.md](docs/SERIAL_CONSOLE.md).
 
 ## Repository layout
 
@@ -139,7 +160,8 @@ firmware/epaper42_web/
 ├── ui_impl.h          framebuffer, font, 5 screens, diff refresh
 ├── ui_font.h          generated 1bpp Unifont (7447 CJK + ASCII)
 ├── webpage.h          inline remote control + image uploader
-└── secrets.example.h  Wi-Fi template
+├── serial_console.h   USB serial console: Wi-Fi provisioning, keys, notes, preview
+└── secrets.example.h  optional compile-time Wi-Fi template
 
 tools/
 ├── gen_font.py        regenerate ui_font.h from GNU Unifont
@@ -153,6 +175,7 @@ docs/
 ├── HARDWARE.md
 ├── INVESTIGATION.md
 ├── LOCAL_UI.md
+├── SERIAL_CONSOLE.md
 └── images/
 ```
 
@@ -209,14 +232,14 @@ curl -X POST http://<ip>/api/refresh
 
 ## Limitations
 
-- **No physical buttons yet.** Input is the web remote. `ui::key()` is ready to
-  be wired to GPIO buttons/encoder.
+- **No physical buttons yet.** Input is the web remote or the USB serial console
+  (`key ...`). `ui::key()` is ready to be wired to GPIO buttons/encoder.
 - **Old 4.2 cannot do a clean 1 Hz clock.** The partial waveform degrades the
   whole panel contrast after ~35 s of 1 Hz updates. The clock is minute-level.
   For seconds, use a 4.2″ V2 panel or accept 10 s-level updates / faster aging.
 - **Images are RAM-only.** The last image is lost on reboot; notes persist in NVS.
 - **GB2312 subset font.** Emoji and rare Chinese characters show a box.
-- **No OTA.** The app is at 83% of the 1.31 MB partition; an OTA layout needs a
+- **No OTA.** The app is at 84% of the 1.31 MB partition; an OTA layout needs a
   smaller font or a custom partition table.
 - **Panel is powered off after 120 s idle** (except the clock screen) to save
   power; the ESP32 stays awake for HTTP. Deep sleep/wake is future work.

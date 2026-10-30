@@ -8,6 +8,8 @@ Waveshare **e-Paper ESP32 Driver Board**.
 - 4 MB SPI flash, **no PSRAM**.
 - USB-serial: CH343P (`/dev/ttyACM0` on Linux).
 - 3.3 V logic and panel supply; boost converter for panel rails.
+- USB serial console at **115200 8N1** for Wi-Fi provisioning and input simulation
+  (see [SERIAL_CONSOLE.md](SERIAL_CONSOLE.md)).
 
 ## Panel
 

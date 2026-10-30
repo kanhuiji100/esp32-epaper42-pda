@@ -86,12 +86,14 @@ python3 tools/gen_font.py
 
 - `fb` + `imageFb` + driver `shadow` + HTTP body buffer ≈ 60 KB.
 - Font bitmaps ≈ 270 KB flash.
-- App size ≈ 1.09 MB of the 1.31 MB partition (83%).
+- App size ≈ 1.11 MB of the 1.31 MB partition (84%).
 - NVS note; no LittleFS image persistence yet.
 
 ## Extending
 
 - Add GPIO buttons and call `ui::key("up"|"down"|"ok"|"back")`.
+- The USB serial console already provides the same `key`/`app`/`note` path; see
+  [SERIAL_CONSOLE.md](SERIAL_CONSOLE.md).
 - Add a reader/text editor screen; reuse `layoutText`/`drawText`.
 - Persist images in LittleFS (15 KB each).
 - If you move to a 4.2 V2 panel, the partial waveform can be driven faster; the

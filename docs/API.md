@@ -8,6 +8,9 @@ request.
 Base URL: `http://<device-ip>/` (the serial log prints the DHCP IP; mDNS is
 `epaper42.local` when available).
 
+For USB serial provisioning and console commands, see
+[SERIAL_CONSOLE.md](SERIAL_CONSOLE.md).
+
 ## Image / screen format
 
 - Size: **15,000 bytes** = `400 / 8 × 300`.
@@ -38,7 +41,7 @@ Partial images use `(w / 8) × h` bytes; `x` and `w` must be multiples of 8.
 ### `GET /api/status`
 
 ```json
-{"ok":1,"ip":"192.168.1.143","heap":180000,"powered":1,"mode":"part"}
+{"ok":1,"ip":"192.168.1.50","heap":180000,"powered":1,"mode":"part"}
 ```
 
 `mode` is `none|std|hq|part`.
@@ -55,7 +58,7 @@ Partial images use `(w / 8) × h` bytes; `x` and `w` must be multiples of 8.
   "hasImage": 0,
   "ms": 984,
   "refresh": 959,
-  "ip": "192.168.1.143",
+  "ip": "192.168.1.50",
   "heap": 178000,
   "time": "22:29"
 }
@@ -73,7 +76,7 @@ canvas, or convert to PNG:
 
 ```python
 from PIL import Image
-d = requests.get("http://192.168.1.143/api/screen").content
+d = requests.get("http://192.168.1.50/api/screen").content
 im = Image.new("1", (400, 300))
 px = im.load()
 for y in range(300):

@@ -1,5 +1,17 @@
 # Changelog
 
+## v0.2.0 — 2026-10-30
+
+- USB serial console at 115200: `help`, `status`, `screen`, keys/apps/notes,
+  panel control, reboot.
+- Wi-Fi provisioning over serial (`wifi set` interactive, hidden password;
+  `wifi scan`, `wifi forget`, `wifi reconnect`).
+- Credentials now live in NVS namespace `wifi` and override `secrets.h`;
+  flash without secrets and provision on first boot.
+- `wifi scan` recovers from a failed-connect radio state by power-cycling the
+  station and retrying.
+- Docs: `docs/SERIAL_CONSOLE.md`; README quick start now uses serial provisioning.
+
 ## v0.1.0 — 2026-10-29
 
 - Initial public release.

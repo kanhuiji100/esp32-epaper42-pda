@@ -2,6 +2,7 @@
 // Fast full refresh (~0.5-0.8s) and partial window refresh (~0.3s).
 #include <WiFi.h>
 #include <ESPmDNS.h>
+#include <Preferences.h>
 #include "panel42.h"
 #include "ui_impl.h"
 #include "webpage.h"
@@ -18,12 +19,14 @@
 #ifndef WIFI_PASSWORD
 #define WIFI_PASSWORD "YOUR_PASSWORD"
 #endif
-static const char* SSID = WIFI_SSID;
-static const char* PASS = WIFI_PASSWORD;
+static const char* DEFAULT_SSID = WIFI_SSID;
+static const char* DEFAULT_PASS = WIFI_PASSWORD;
 
 WiFiServer server(80);
 static uint8_t rxbuf[panel42::IMGSZ];
 static uint32_t lastActivity = 0;
+Preferences wifiPrefs;
+static bool netReady = false;
 
 // ---------------- HTTP helpers ----------------
 static String readLine(WiFiClient& c, uint32_t timeoutMs = 2000) {
@@ -358,12 +361,51 @@ static void handleClient(WiFiClient& c) {
 }
 
 // ---------------- WiFi ----------------
-static void connectWiFi() {
+// Credentials come from NVS namespace "wifi" if provisioned over serial,
+// otherwise from secrets.h (or the placeholder fallback for CI builds).
+static bool wifiLoadCredentials(String& ssid, String& pass) {
+  wifiPrefs.begin("wifi", false);
+  ssid = wifiPrefs.getString("ssid", "");
+  pass = wifiPrefs.getString("pass", "");
+  if (ssid.length() == 0) {
+    ssid = DEFAULT_SSID;
+    pass = DEFAULT_PASS;
+    return false;
+  }
+  return true;
+}
+
+static void startNetworkServices() {
+  server.begin();
+  server.setNoDelay(true);
+  MDNS.end();
+  if (MDNS.begin("epaper42")) {
+    MDNS.addService("http", "tcp", 80);
+    Serial.println("mDNS: http://epaper42.local");
+  }
+  configTzTime("CST-8", "ntp.aliyun.com", "cn.pool.ntp.org", "pool.ntp.org");
+  netReady = true;
+  Serial.print("IP: "); Serial.println(WiFi.localIP());
+  Serial.println("HTTP server on :80");
+}
+
+static bool wifiStart(const String& ssid, const String& pass, bool save) {
+  if (ssid.length() == 0) {
+    Serial.println("WiFi: empty SSID");
+    return false;
+  }
+  Serial.printf("WiFi: connecting to %s\n", ssid.c_str());
+  if (netReady) {
+    server.end();
+    MDNS.end();
+  }
+  netReady = false;
+  WiFi.disconnect(true);
+  delay(120);
   WiFi.mode(WIFI_STA);
-  WiFi.setSleep(false);            // lower HTTP latency
+  WiFi.setSleep(false);
   WiFi.setHostname("epaper42");
-  WiFi.begin(SSID, PASS);
-  Serial.print("WiFi");
+  WiFi.begin(ssid.c_str(), pass.c_str());
   uint32_t t0 = millis();
   while (WiFi.status() != WL_CONNECTED && millis() - t0 < 20000) {
     delay(250);
@@ -371,15 +413,19 @@ static void connectWiFi() {
   }
   Serial.println();
   if (WiFi.status() == WL_CONNECTED) {
-    Serial.print("IP: "); Serial.println(WiFi.localIP());
-    if (MDNS.begin("epaper42")) {
-      MDNS.addService("http", "tcp", 80);
-      Serial.println("mDNS: http://epaper42.local");
+    if (save) {
+      wifiPrefs.putString("ssid", ssid);
+      wifiPrefs.putString("pass", pass);
+      Serial.println("WiFi: saved to NVS");
     }
-  } else {
-    Serial.println("WiFi connect failed, will retry in loop");
+    startNetworkServices();
+    return true;
   }
+  Serial.println("WiFi: connect failed");
+  return false;
 }
+
+#include "serial_console.h"
 
 void setup() {
   Serial.begin(115200);
@@ -391,28 +437,38 @@ void setup() {
   Serial.printf("boot clear: total=%lu init=%lu data=%lu refresh=%lu\n",
                 (unsigned long)bt.total, (unsigned long)bt.init,
                 (unsigned long)bt.data, (unsigned long)bt.refresh);
-  connectWiFi();
-  configTzTime("CST-8", "ntp.aliyun.com", "cn.pool.ntp.org", "pool.ntp.org");
-  server.begin();
-  server.setNoDelay(true);
+  WiFi.persistent(false);
+  String ssid, pass;
+  bool fromNvs = wifiLoadCredentials(ssid, pass);
+  if (!wifiStart(ssid, pass, false)) {
+    if (fromNvs &&
+        (ssid != String(DEFAULT_SSID) || pass != String(DEFAULT_PASS))) {
+      Serial.println("WiFi: NVS credentials failed, trying secrets.h");
+      wifiStart(String(DEFAULT_SSID), String(DEFAULT_PASS), false);
+    }
+  }
   lastActivity = millis();
-  Serial.println("HTTP server on :80");
   ui::begin();
   Serial.println("local UI ready");
+  console::begin();
 }
 
 void loop() {
+  ui::tick();
+  console::loop();
   if (WiFi.status() != WL_CONNECTED) {
+    netReady = false;
     static uint32_t lastTry = 0;
     if (millis() - lastTry > 10000) {
       WiFi.reconnect();
       lastTry = millis();
     }
+  } else if (!netReady) {
+    startNetworkServices();
   }
-  ui::tick();
-  WiFiClient client = server.available();
-  if (client) {
-    handleClient(client);
+  if (netReady) {
+    WiFiClient client = server.available();
+    if (client) handleClient(client);
   }
   if (strcmp(ui::appName(), "clock") != 0 && panel42::isPowered() &&
       millis() - lastActivity > 120000UL) {

@@ -434,7 +434,11 @@ void commit(bool forceFull) {
       }
     }
   }
-  if (maxB < 0) { lastT = panel42::Timings{}; return; }
+  if (maxB < 0) {
+    if (forceFull) panel42::fullStd(fb, lastT);   // e.g. power on with identical frame
+    else lastT = panel42::Timings{};
+    return;
+  }
   int x0 = minB * 8;
   int w = (maxB - minB + 1) * 8;
   int y0 = minY;
@@ -513,6 +517,7 @@ void begin() {
 
 panel42::Timings key(const String& k) {
   String s = k; s.toLowerCase();
+  bool wasOff = !panel42::isPowered();
   App before = app;
   bool pageChanged = false;
   bool homeMoved = false;
@@ -540,16 +545,17 @@ panel42::Timings key(const String& k) {
       app = App::HOME;
     }
   }
-  renderAndCommit(app != before || pageChanged || homeMoved);
+  renderAndCommit(app != before || pageChanged || homeMoved || wasOff);
   return lastT;
 }
 
 panel42::Timings setApp(const String& name) {
+  bool wasOff = !panel42::isPowered();
   App before = app;
   if (setAppByName(name)) {
     if (app == App::NOTES) notePage = 0;
   }
-  renderAndCommit(app != before);
+  renderAndCommit(app != before || wasOff);
   return lastT;
 }
 

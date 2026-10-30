@@ -12,8 +12,8 @@ The device IP defaults to `epaper42.local`; override with the first argument or
 the `EPAPER_IP` environment variable:
 
 ```bash
-.venv/bin/python tools/api_test.py 192.168.1.143
-EPAPER_IP=192.168.1.143 .venv/bin/python tools/ui_remote_test.py
+.venv/bin/python tools/api_test.py 192.168.1.50
+EPAPER_IP=192.168.1.50 .venv/bin/python tools/ui_remote_test.py
 ```
 
 | Script | Purpose |
