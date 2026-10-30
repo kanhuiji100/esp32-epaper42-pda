@@ -18,7 +18,7 @@ rendered in the browser (the browser only mirrors the device framebuffer).
 
 ### Home
 
-- Four rows: **时钟 / 记事 / 图片 / 设置**.
+- Five rows: **时钟 / 记事 / 图片 / 二维码 / 设置**.
 - Icon + Chinese label + inverted selection bar.
 - `↑↓` move, `OK` enter, `Back/Home` return.
 - Menu movement uses a full standard refresh (~1 s) to keep the selection bar and
@@ -49,6 +49,19 @@ rendered in the browser (the browser only mirrors the device framebuffer).
 - Back/Home returns to the menu; entering the image app again redraws it with a
   full standard refresh.
 
+### QR
+
+- Encodes text or a `WIFI:` join code into a version 1–13 QR (ECC M).
+- Uses a 4-module quiet zone, integer module scaling, pure white background and
+  **no status bar**, so the scanner sees a clean code.
+- Every valid QR is drawn with `panel42::fullHq()` — the original **50 Hz,
+  4.14 s** waveform — for maximum contrast. This includes entering the QR app
+  from the menu or pressing a key while the panel is off.
+- The screen is static: `ui::tick()` skips it; no minute/status partial updates.
+- Input comes from the web QR card, `POST /api/qr`, or serial `qr` / `qr wifi`.
+- Payload and password live in RAM only; `qr clear` or reboot removes them.
+- The placeholder (no code yet) uses the normal standard waveform.
+
 ### Settings
 
 - Wi-Fi SSID, IP, RSSI, free heap, current panel mode, flash size, uptime, web URL.
@@ -78,6 +91,7 @@ python3 tools/gen_font.py
 - `GET /api/ui`: app, selection, page count, last refresh time.
 - `POST /api/key?k=...`, `POST /api/app?name=...`.
 - Note textarea: `GET/POST /api/note`.
+- QR card: `POST /api/qr` (text/Wi-Fi/clear); generation takes ~4.1 s.
 - Preview polls every 1.5 s; key/app actions refresh immediately.
 - Buttons are disabled while a refresh is in flight (the server is single
   threaded and a refresh takes 0.58–0.98 s).
@@ -85,9 +99,10 @@ python3 tools/gen_font.py
 ## Memory / storage
 
 - `fb` + `imageFb` + driver `shadow` + HTTP body buffer ≈ 60 KB.
+- QR encode buffers (`qrBuf`/`qrTemp`/`qrCand`) ≈ 12 KB static.
 - Font bitmaps ≈ 270 KB flash.
-- App size ≈ 1.11 MB of the 1.31 MB partition (84%).
-- NVS note; no LittleFS image persistence yet.
+- App size ≈ 1.12 MB of the 1.31 MB partition (85%).
+- NVS note; no LittleFS image/QR persistence yet.
 
 ## Extending
 
@@ -95,6 +110,6 @@ python3 tools/gen_font.py
 - The USB serial console already provides the same `key`/`app`/`note` path; see
   [SERIAL_CONSOLE.md](SERIAL_CONSOLE.md).
 - Add a reader/text editor screen; reuse `layoutText`/`drawText`.
-- Persist images in LittleFS (15 KB each).
+- Persist images/QR payloads in LittleFS (with care: a Wi-Fi QR contains a password).
 - If you move to a 4.2 V2 panel, the partial waveform can be driven faster; the
   UI/HTTP layers can stay.

@@ -138,6 +138,27 @@ static bool getParamStr(const String& q, const char* key, String& out) {
   return out.length() > 0;
 }
 
+static String urlDecode(const String& in) {
+  String out;
+  for (int i = 0; i < (int)in.length(); i++) {
+    char c = in[i];
+    if (c == '+') { out += ' '; continue; }
+    if (c == '%' && i + 2 < (int)in.length()) {
+      int hi = -1, lo = -1;
+      char a = in[i + 1], b = in[i + 2];
+      if (a >= '0' && a <= '9') hi = a - '0';
+      else if (a >= 'a' && a <= 'f') hi = a - 'a' + 10;
+      else if (a >= 'A' && a <= 'F') hi = a - 'A' + 10;
+      if (b >= '0' && b <= '9') lo = b - '0';
+      else if (b >= 'a' && b <= 'f') lo = b - 'a' + 10;
+      else if (b >= 'A' && b <= 'F') lo = b - 'A' + 10;
+      if (hi >= 0 && lo >= 0) { out += (char)((hi << 4) | lo); i += 2; continue; }
+    }
+    out += c;
+  }
+  return out;
+}
+
 static bool getParam(const String& q, const char* key, int& out) {
   String k = String(key) + "=";
   int p = q.indexOf(k);
@@ -219,6 +240,10 @@ static void handleClient(WiFiClient& c) {
       sendJson(c, 200, ui::stateJson());
       return;
     }
+    if (path == "/api/qr") {
+      sendJson(c, 200, ui::stateJson());
+      return;
+    }
     sendJson(c, 404, "{\"ok\":0,\"err\":\"not found\"}");
     return;
   }
@@ -269,6 +294,61 @@ static void handleClient(WiFiClient& c) {
     ui::setNote(text);
     lastActivity = millis();
     sendJson(c, 200, ui::stateJson());
+    return;
+  }
+
+  if (path == "/api/qr") {
+    String type = "text";
+    getParamStr(query, "type", type);
+    type.toLowerCase();
+
+    if (type == "clear") {
+      ui::clearQr();
+      lastActivity = millis();
+      sendJson(c, 200, ui::stateJson());
+      return;
+    }
+
+    if (type == "wifi") {
+      String ssid, pass;
+      if (!getParamStr(query, "ssid", ssid)) {
+        sendJson(c, 400, "{\"ok\":0,\"err\":\"need ssid\"}");
+        return;
+      }
+      getParamStr(query, "pass", pass);   // empty password allowed
+      ssid = urlDecode(ssid);
+      pass = urlDecode(pass);
+      if (!ui::setWifiQr(ssid, pass)) {
+        sendJson(c, 400, "{\"ok\":0,\"err\":\"bad WiFi QR: SSID 1-32 bytes, password 8-63 or empty\"}");
+        return;
+      }
+      lastActivity = millis();
+      sendJson(c, 200, ui::stateJson());
+      return;
+    }
+
+    if (type == "text") {
+      if (contentLength <= 0 || contentLength > 1024) {
+        sendJson(c, 400, "{\"ok\":0,\"err\":\"text body 1-1024 bytes\"}");
+        return;
+      }
+      if (expect100) { c.print("HTTP/1.1 100 Continue\r\n\r\n"); }
+      if (!readBody(c, rxbuf, contentLength)) {
+        sendJson(c, 400, "{\"ok\":0,\"err\":\"body timeout\"}");
+        return;
+      }
+      rxbuf[contentLength] = 0;
+      String text((char*)rxbuf, contentLength);
+      if (!ui::setQr(text, "text")) {
+        sendJson(c, 400, "{\"ok\":0,\"err\":\"text too long for QR version 13\"}");
+        return;
+      }
+      lastActivity = millis();
+      sendJson(c, 200, ui::stateJson());
+      return;
+    }
+
+    sendJson(c, 400, "{\"ok\":0,\"err\":\"type must be text|wifi|clear\"}");
     return;
   }
 

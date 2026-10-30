@@ -28,10 +28,14 @@ Partial images use `(w / 8) × h` bytes; `x` and `w` must be multiples of 8.
 | GET | `/api/status` | — | device status JSON |
 | GET | `/api/screen` | — | current framebuffer, 15,000 bytes |
 | GET | `/api/ui` | — | local-UI state JSON |
+| GET | `/api/qr` | — | QR state (same fields as `/api/ui`) |
 | GET | `/api/note` | — | current note, UTF-8 text |
 | POST | `/api/key?k=...` | — | send a key, returns UI state |
 | POST | `/api/app?name=...` | — | switch app, returns UI state |
 | POST | `/api/note` | UTF-8 text ≤ 4095 B | save note + show notes app |
+| POST | `/api/qr?type=text` | UTF-8 text, 1–1024 B | generate text QR, show QR app |
+| POST | `/api/qr?type=wifi&ssid=&pass=` | — | generate Wi-Fi QR (URL-encoded) |
+| POST | `/api/qr?type=clear` | — | clear QR / show placeholder |
 | POST | `/api/full?mode=...` | 15,000 B frame | upload full image |
 | POST | `/api/refresh` | — | full-refresh current frame (clean ghosting) |
 | POST | `/api/clear` | — | clear white + return home |
@@ -120,6 +124,53 @@ curl -X POST --data-binary '第一行
 - Body limit: 4095 bytes (the page limits the textarea to 1200 characters).
 - Saved in NVS namespace `pda`, key `note`; survives reboot.
 - The device wraps at 360 px and paginates at 9 lines/page.
+
+### QR
+
+Generate a QR code and switch the local UI to the QR screen. The device uses the
+**50 Hz HQ waveform** (`fullHq`, ~4.15 s) for maximum contrast and a 4-module
+quiet zone; the QR screen is static afterwards. See [QRCODE.md](QRCODE.md).
+
+**Text:**
+
+```bash
+curl -X POST --data-binary 'Hello QR 你好' \
+  'http://<ip>/api/qr?type=text'
+```
+
+Body is raw UTF-8, 1–1024 bytes; the encoder rejects payloads that do not fit QR
+version 13 (ECC M) with HTTP 400. The previous QR remains on screen on failure.
+
+**Wi-Fi:**
+
+```bash
+curl -X POST \
+  'http://<ip>/api/qr?type=wifi&ssid=MyRouter&pass=my%20passphrase'
+
+# open network
+curl -X POST 'http://<ip>/api/qr?type=wifi&ssid=Guest&pass='
+```
+
+`ssid` and `pass` are URL-encoded. SSID 1–32 bytes; password 8–63 bytes or empty.
+The payload is `WIFI:T:WPA;S:<ssid>;P:<pass>;;` (or `T:nopass` for empty);
+`\`, `;`, `,`, `:` and `"` are escaped.
+
+**Clear:**
+
+```bash
+curl -X POST 'http://<ip>/api/qr?type=clear'
+```
+
+Response (same fields as `/api/ui`):
+
+```json
+{"ok":1,"app":"qr","sel":3,"page":0,"pages":1,"hasImage":0,
+ "qr":1,"qrType":"text","qrModules":33,"ms":4153,"refresh":4127,
+ "ip":"192.168.1.50","heap":160000,"time":"10:18"}
+```
+
+`qr` = valid code; `qrType` = `text`/`wifi`; `qrModules` = matrix side; `ms` is
+the HQ refresh time. The payload/password is not returned.
 
 ### Full image
 

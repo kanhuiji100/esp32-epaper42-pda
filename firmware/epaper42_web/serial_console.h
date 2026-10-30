@@ -7,7 +7,7 @@
 
 namespace console {
 
-enum Mode { CM_NORMAL, CM_SSID, CM_PASS };
+enum Mode { CM_NORMAL, CM_SSID, CM_PASS, CM_QR_PASS };
 static Mode mode = CM_NORMAL;
 static String pendingSsid, pendingPass;
 static String buf;
@@ -127,6 +127,9 @@ static void printHelp() {
   Serial.println("  note                   show current note");
   Serial.println("  note <text>            set note (UTF-8)");
   Serial.println("  note clear             clear note");
+  Serial.println("  qr <text>              generate a text QR (UTF-8) and show it");
+  Serial.println("  qr wifi <ssid> [pass]  Wi-Fi QR; omit pass for hidden prompt");
+  Serial.println("  qr clear               clear QR / show placeholder");
   Serial.println("  wifi                   current Wi-Fi state");
   Serial.println("  wifi scan              scan visible networks");
   Serial.println("  wifi set               interactive provisioning (password hidden)");
@@ -183,6 +186,18 @@ static void handleLine(const String& raw) {
     pendingPass = raw;          // preserve spaces in the password
     mode = CM_NORMAL;
     connectAndRestore(pendingSsid, pendingPass);
+    pendingPass = "";
+    return;
+  }
+  if (mode == CM_QR_PASS) {
+    pendingPass = raw;
+    mode = CM_NORMAL;
+    if (ui::setWifiQr(pendingSsid, pendingPass)) {
+      lastActivity = millis();
+      Serial.print("qr: "); Serial.println(ui::qrSummary());
+    } else {
+      Serial.println("qr: failed (SSID 1-32 bytes, password 8-63 or empty)");
+    }
     pendingPass = "";
     return;
   }
@@ -265,6 +280,61 @@ static void handleLine(const String& raw) {
     lastActivity = millis();
     Serial.println("note saved");
     printStatus();
+    return;
+  }
+
+  if (cmd == "qr") {
+    if (argc == 1) {
+      Serial.print("qr: "); Serial.println(ui::qrSummary());
+      return;
+    }
+    String sub = args[1];
+    sub.toLowerCase();
+    if (sub == "clear") {
+      ui::clearQr();
+      lastActivity = millis();
+      Serial.println("qr: cleared");
+      return;
+    }
+    if (sub == "wifi") {
+      if (argc >= 4) {
+        if (ui::setWifiQr(args[2], args[3])) {
+          lastActivity = millis();
+          Serial.print("qr: "); Serial.println(ui::qrSummary());
+        } else {
+          Serial.println("qr: failed (SSID 1-32 bytes, password 8-63 or empty)");
+        }
+        return;
+      }
+      if (argc == 3) {
+        pendingSsid = args[2];
+        pendingPass = "";
+        mode = CM_QR_PASS;
+        Serial.print("WiFi password (hidden): ");
+        return;
+      }
+      Serial.println("usage: qr wifi <ssid> [pass]");
+      return;
+    }
+    String rest;
+    if (sub == "text") {
+      int p = line.indexOf(' ', 3);
+      rest = p < 0 ? String("") : line.substring(p + 1);
+    } else {
+      int p = line.indexOf(' ');
+      rest = p < 0 ? String("") : line.substring(p + 1);
+    }
+    rest.trim();
+    if (rest.length() == 0) {
+      Serial.println("usage: qr <text>");
+      return;
+    }
+    if (ui::setQr(rest, "text")) {
+      lastActivity = millis();
+      Serial.print("qr: "); Serial.println(ui::qrSummary());
+    } else {
+      Serial.println("qr: text too long for QR version 13");
+    }
     return;
   }
 
@@ -394,7 +464,7 @@ static void loop() {
     if (c < 0x20) continue;
     if (buf.length() >= 200) continue;
     buf += c;
-    if (mode == CM_PASS) Serial.print('*');
+    if (mode == CM_PASS || mode == CM_QR_PASS) Serial.print('*');
     else Serial.print(c);
   }
 }

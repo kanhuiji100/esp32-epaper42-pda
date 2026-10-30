@@ -19,6 +19,13 @@ The original licenses apply to the corresponding portions.
   “partial waveform over the full area without a 0x91/0x90 window” approach come
   from `GxEPD2_420.cpp`.
 
+## QR Code generator library (C)
+
+- Files: `firmware/epaper42_web/qrcodegen.h`, `firmware/epaper42_web/qrcodegen.c`
+- Author: Project Nayuki
+- License: MIT — see [docs/NAYUKI_QR_LICENSE.txt](docs/NAYUKI_QR_LICENSE.txt)
+- Source: https://www.nayuki.io/page/qr-code-generator-library
+
 ## GNU Unifont
 
 - **GNU Unifont** 16 px — GPLv2+ with the GNU font embedding exception, and

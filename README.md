@@ -2,8 +2,8 @@
 
 A local-first PDA built on an ESP32 and a Waveshare 4.2″ e-paper panel
 (WFT0420CZ15 / UC8176, 400×300). The device renders its own UI (menu, clock,
-notes, image viewer, settings); a browser is only used as a remote control and
-image uploader.
+notes, image viewer, QR codes, settings); a browser is only used as a remote control
+and image uploader.
 
 The project also documents how the stock Waveshare loader was sped up from
 **~8.6 s to 0.6 s** for a full image, and why this old panel cannot do a clean
@@ -16,15 +16,18 @@ The project also documents how the stock Waveshare loader was sped up from
 ## Highlights
 
 - **Local UI on the ESP32** — 400×300 1bpp framebuffer, GB2312 + ASCII bitmap font.
-- **Five screens** — Home, Clock, Notes, Image, Settings.
-- **Web remote** — live 15 KB screen mirror, D-pad, app shortcuts, note editor.
+- **Six screens** — Home, Clock, Notes, Image, QR, Settings.
+- **Web remote** — live 15 KB screen mirror, D-pad, app shortcuts, note editor,
+  text/Wi-Fi QR generator.
 - **Fast refresh** — full image in **0.61 s** (device), **0.69–0.80 s** round trip.
 - **Quality modes** — 0.61 s / 0.98 s / 4.14 s full-refresh waveforms.
 - **Partial updates** — 0.58 s window updates for status bar / small changes.
 - **Persistent notes** — stored in NVS and rendered locally.
 - **No vendor cloud/app** — Wi-Fi HTTP only, all rendering on-device.
 - **Serial console** — provision Wi-Fi, simulate D-pad/keys, switch apps, edit notes,
-  inspect status and print an ASCII screen preview over USB serial.
+  generate text/Wi-Fi QR codes, inspect status and print an ASCII screen preview.
+- **Max-contrast QR** — text or `WIFI:` join code, drawn with the 50 Hz 4.14 s
+  waveform and a 4-module quiet zone.
 
 ## Measured results
 
@@ -44,11 +47,13 @@ The project also documents how the stock Waveshare loader was sped up from
 
 ## Screenshots
 
-| Local home | Minute clock |
+| Local home (5 menu items) | Minute clock |
 |---|---|
 | ![Local home](docs/images/ui_home.png) | ![Clock](docs/images/ui_clock.png) |
 
-![Web remote](docs/images/ui_remote.png)
+| QR screen (HQ waveform) | Web UI with QR card |
+|---|---|
+| ![QR](docs/images/ui_qr.png) | ![Web UI](docs/images/ui_qr_page.png) |
 
 ## Hardware
 
@@ -157,10 +162,11 @@ firmware/epaper42_web/
 ├── epaper42_web.ino   Wi-Fi, NTP, HTTP routes, serial logs
 ├── panel42.h          UC8176 driver: SPI, LUTs, full/fast/partial refresh
 ├── ui.h               public UI API
-├── ui_impl.h          framebuffer, font, 5 screens, diff refresh
+├── ui_impl.h          framebuffer, font, 6 screens, QR rendering, diff refresh
 ├── ui_font.h          generated 1bpp Unifont (7447 CJK + ASCII)
 ├── webpage.h          inline remote control + image uploader
-├── serial_console.h   USB serial console: Wi-Fi provisioning, keys, notes, preview
+├── serial_console.h   USB serial console: Wi-Fi provisioning, keys, notes, QR, preview
+├── qrcodegen.h/.c     Nayuki QR Code generator (MIT)
 └── secrets.example.h  optional compile-time Wi-Fi template
 
 tools/
@@ -176,6 +182,7 @@ docs/
 ├── INVESTIGATION.md
 ├── LOCAL_UI.md
 ├── SERIAL_CONSOLE.md
+├── QRCODE.md
 └── images/
 ```
 
@@ -191,7 +198,7 @@ framebuffer shadow. A frame is 15,000 bytes (400/8 × 300), 1 = white, 0 = black
 | `MODE_PART` + `fullFast` | GxEPD2 partial LUT, 100 Hz | inverted | 0.58 s | fast full image |
 | `MODE_PART` + `partialFb` | GxEPD2 partial LUT, 100 Hz | inverted | 0.58 s | small window update |
 | `MODE_STD` + `fullStd` | Waveshare fast full LUT, 100 Hz | normal | 0.98 s | UI transitions, images |
-| `MODE_HQ` + `fullHq` | original 50 Hz LUT | normal | 4.14 s | photos / maximum black |
+| `MODE_HQ` + `fullHq` | original 50 Hz LUT | normal | 4.14 s | photos / QR / maximum black |
 
 **Local UI.** Each screen is drawn into `ui::fb`; `commit()` compares it with
 `panel42::shadow` byte-by-byte and sends only the changed rectangle. A large
@@ -201,7 +208,9 @@ change uses `fullStd`; a small one uses `partialFb`. The clock is special:
 - 1 Hz partial refresh was removed because the old 4.2 panel fades visibly after
   ~35 s (see [docs/INVESTIGATION.md](docs/INVESTIGATION.md));
 - other pages update the status-bar minute with a small partial window, plus a
-  full cleanup every 15 minutes.
+  full cleanup every 15 minutes;
+- the QR screen is static and always drawn with `fullHq` when a valid code is
+  shown, so the code is never disturbed by partial updates.
 
 **Fonts.** `tools/gen_font.py` renders GNU Unifont at 16 px into 1bpp bitmaps:
 7447 GB2312 characters/punctuation at 16×16 and 95 ASCII glyphs at 8×16.
@@ -226,6 +235,11 @@ curl -X POST --data-binary '今天要做的三件事…' \
 # full image: mode=fast|std|hq, 15000 bytes
 curl -X POST --data-binary @frame.bin 'http://<ip>/api/full?mode=fast'
 
+# QR: text, Wi-Fi, clear (HQ 50 Hz, ~4.1 s)
+curl -X POST --data-binary 'hello QR' 'http://<ip>/api/qr?type=text'
+curl -X POST 'http://<ip>/api/qr?type=wifi&ssid=MyRouter&pass=my%20pass'
+curl -X POST 'http://<ip>/api/qr?type=clear'
+
 # full-refresh current frame (clean ghosting)
 curl -X POST http://<ip>/api/refresh
 ```
@@ -237,9 +251,12 @@ curl -X POST http://<ip>/api/refresh
 - **Old 4.2 cannot do a clean 1 Hz clock.** The partial waveform degrades the
   whole panel contrast after ~35 s of 1 Hz updates. The clock is minute-level.
   For seconds, use a 4.2″ V2 panel or accept 10 s-level updates / faster aging.
-- **Images are RAM-only.** The last image is lost on reboot; notes persist in NVS.
+- **Images and QR codes are RAM-only.** The last image/QR is lost on reboot; notes
+  persist in NVS.
 - **GB2312 subset font.** Emoji and rare Chinese characters show a box.
-- **No OTA.** The app is at 84% of the 1.31 MB partition; an OTA layout needs a
+- **QR is limited to version 13 (69 modules).** ECC M, 4-module quiet zone; longer
+  payloads return HTTP 400. The QR screen always uses the 4.14 s HQ waveform.
+- **No OTA.** The app is at 85% of the 1.31 MB partition; an OTA layout needs a
   smaller font or a custom partition table.
 - **Panel is powered off after 120 s idle** (except the clock screen) to save
   power; the ESP32 stays awake for HTTP. Deep sleep/wake is future work.
@@ -251,21 +268,25 @@ curl -X POST http://<ip>/api/refresh
 Original code: **MIT** — see [LICENSE](LICENSE).
 Third-party components and font data: [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).
 
-Waveshare EPD_4in2 and GxEPD2 are MIT-licensed. The generated font bitmap is
-derived from GNU Unifont (GPLv2+ with font embedding exception); see the notice
-file for details.
+Waveshare EPD_4in2 and GxEPD2 are MIT-licensed. The QR generator is the Nayuki
+QR Code generator library (MIT); see [docs/NAYUKI_QR_LICENSE.txt](docs/NAYUKI_QR_LICENSE.txt).
+The generated font bitmap is derived from GNU Unifont (GPLv2+ with font embedding
+exception); see the notice file for details.
 
 ## 中文说明
 
 这是一个 **ESP32 + 4.2 吋墨水屏（WFT0420CZ15 / UC8176，400×300）** 的本地优先
-PDA 项目。ESP32 自己维护画布并渲染主菜单、时钟、记事、图片、设置；网页只做
-遥控器和图片上传。
+PDA 项目。ESP32 自己维护画布并渲染主菜单、时钟、记事、图片、二维码、设置；
+网页只做遥控器、图片上传和二维码输入。
 
 - 整屏图片从原厂约 **8.6 s** 降到 **0.61 s**（设备端），浏览器往返 **0.7–0.8 s**。
 - 菜单/切页/记事翻页用标准全刷约 **1.0 s**；时钟**每分钟整分全刷一次**。
 - 老 4.2 的局部波形不能做 1 Hz 时钟：约 35 秒后整屏发灰，因此时钟不显示秒。
-- 记事存 NVS；图片只在 RAM；暂未接实体按键，全部由网页遥控。
+- 串口控制台 115200：`wifi set` 配网、`key` 模拟按键、`qr`/`qr wifi` 生成二维码。
+- 二维码：网页或串口输入文字/SSID+密码，自动切到二维码页，用 50Hz 高清全刷
+  （约 4.1s）保证最大对比度；二维码页保持静止，不做局部刷新。
+- 记事存 NVS；图片和二维码只在 RAM；暂未接实体按键，由网页/串口操作。
 
-编译前在 `firmware/epaper42_web/` 下复制 `secrets.example.h` 为 `secrets.h`
-并填写 Wi-Fi；`secrets.h` 不会提交。详细构建、API、硬件和实验记录见
-[docs/](docs/)。
+烧录后可不填 `secrets.h`，直接用串口 `wifi set` 配网；也可以复制
+`secrets.example.h` 为 `secrets.h` 作为编译期 fallback。详细构建、API、硬件和
+实验记录见 [docs/](docs/)。

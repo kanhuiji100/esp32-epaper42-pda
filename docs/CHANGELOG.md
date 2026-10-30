@@ -1,5 +1,17 @@
 # Changelog
 
+## v0.3.0 — 2026-10-30
+
+- New **QR** screen: text QR and Wi-Fi join QR (`WIFI:T:WPA;S:...;P:...;;`).
+- Input from the web QR card, `POST /api/qr`, and serial `qr` / `qr wifi`.
+- QR codes always render with the 50 Hz HQ waveform (~4.15 s), 4-module quiet
+  zone, integer scaling and no status bar; the QR screen is static.
+- Home menu now has five items; QR is the fourth.
+- Wi-Fi QR escapes `\ ; , : "` and supports open networks (`T:nopass`).
+- Added Nayuki QR Code generator (C, MIT); text/Wi-Fi codes decoded with
+  `zxing-cpp` in testing.
+- Docs: [QRCODE.md](QRCODE.md), API and serial-console updates; firmware ~85%.
+
 ## v0.2.0 — 2026-10-30
 
 - USB serial console at 115200: `help`, `status`, `screen`, keys/apps/notes,

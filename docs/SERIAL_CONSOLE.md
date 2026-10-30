@@ -98,6 +98,36 @@ screen: app=clock
 `screen` samples each 8×10 pixel block and prints `#` for dark areas; it is a
 quick sanity check, not a pixel-perfect mirror.
 
+## QR codes
+
+| Command | Result |
+|---|---|
+| `qr <text>` | generate a text QR (UTF-8, one line) and show the QR app |
+| `qr text <text>` | same, explicit text form |
+| `qr wifi <ssid> <pass>` | Wi-Fi QR; password visible in the command echo |
+| `qr wifi <ssid>` | prompt for the password with `*` masking |
+| `qr` | show `valid/type/modules/bytes` (never the payload or password) |
+| `qr clear` | clear the code / show the placeholder |
+
+Examples:
+
+```text
+> qr 你好，扫码测试
+qr: valid=1 type=text modules=25 bytes=21
+
+> qr 你好控制台
+qr: valid=1 type=text modules=25 bytes=15
+
+> qr wifi MyRouter
+WiFi password (hidden): **************
+qr: valid=1 type=wifi modules=29 bytes=42
+```
+
+The QR is displayed with the **50 Hz HQ waveform (4.14 s)** and a 4-module quiet
+zone. It stays static (no minute partial updates) until you generate another code
+or leave the screen. QR content is RAM-only; `qr clear` or reboot drops it. See
+[QRCODE.md](QRCODE.md) for payload details and limits.
+
 ## Panel / system
 
 | Command | Result |

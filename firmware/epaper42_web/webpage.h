@@ -31,6 +31,11 @@ main{max-width:1040px;margin:0 auto;padding:16px;display:grid;grid-template-colu
 .apps button{padding:7px 10px;font-size:13px}
 .note-row{display:grid;grid-template-columns:1fr auto;gap:10px;margin-top:12px;align-items:start}
 #noteText{width:100%;height:74px;padding:8px;border:1px solid var(--line);border-radius:8px;font:14px/1.5 inherit;resize:vertical}
+.qr{grid-column:1/-1}
+.qr-grid{display:grid;grid-template-columns:1fr 1fr;gap:18px}
+.qr-grid label{display:block;margin:8px 0 4px}
+.qr-grid textarea,.qr-grid input{width:100%;padding:8px;border:1px solid var(--line);border-radius:8px;font:14px/1.5 inherit}
+.qr-grid textarea{height:96px;resize:vertical}
 canvas{width:100%;height:auto;display:block;border:1px solid var(--line);border-radius:6px;background:#fff;image-rendering:pixelated}
 #drop{margin-top:10px;border:2px dashed #cbd5e1;border-radius:8px;padding:14px;text-align:center;color:var(--muted);cursor:pointer;transition:.15s}
 #drop.over{border-color:var(--accent);background:#f0f6ff}
@@ -48,7 +53,7 @@ button:disabled{opacity:.45;cursor:default}
 #log{height:150px;overflow:auto;background:#0b1020;color:#d7e0ff;border-radius:8px;padding:10px;font:12px/1.55 ui-monospace,Consolas,monospace}
 #log div{white-space:pre-wrap;word-break:break-word}
 #log .ok{color:#7ee2a8}#log .err{color:#ff8a8a}#log .warn{color:#ffd166}
-@media(max-width:760px){main{grid-template-columns:1fr}.remote-wrap{grid-template-columns:1fr}.note-row{grid-template-columns:1fr}#status{display:none}}
+@media(max-width:760px){main{grid-template-columns:1fr}.remote-wrap{grid-template-columns:1fr}.note-row,.qr-grid{grid-template-columns:1fr}#status{display:none}}
 </style>
 </head>
 <body>
@@ -76,6 +81,7 @@ button:disabled{opacity:.45;cursor:default}
           <button data-app="clock">时钟</button>
           <button data-app="notes">记事</button>
           <button data-app="image">图片</button>
+          <button data-app="qr">二维码</button>
           <button data-app="settings">设置</button>
         </div>
       </div>
@@ -85,6 +91,28 @@ button:disabled{opacity:.45;cursor:default}
       <button id="btnNote" class="primary">发送到记事</button>
     </div>
     <p class="hint">方向键控制本地菜单；“OK”进入选中的应用；“返回/主页”回主菜单。预览每 1.5 秒同步一次；时钟页由 ESP32 自己每分钟全刷更新（老 4.2 不适合 1Hz 局部刷新，秒跳会累积发灰）。</p>
+  </section>
+
+  <section class="card qr">
+    <h2>二维码</h2>
+    <div class="qr-grid">
+      <div>
+        <label>文字内容（支持中文）</label>
+        <textarea id="qrText" maxlength="512" placeholder="输入要生成二维码的文字，例如：https://example.com 或一段备忘"></textarea>
+        <div class="row"><button id="btnQrText" class="primary">生成文字二维码</button></div>
+      </div>
+      <div>
+        <label>WiFi SSID（2.4G）</label>
+        <input id="qrSsid" maxlength="32" placeholder="例如 MyRouter">
+        <label>WiFi 密码</label>
+        <input id="qrPass" type="password" maxlength="63" placeholder="8-63 位；留空表示开放网络">
+        <div class="row"><button id="btnQrWifi" class="primary">生成 WiFi 二维码</button></div>
+      </div>
+    </div>
+    <div class="row">
+      <button id="btnQrClear">清空二维码</button>
+      <span class="hint">生成后自动切到设备“二维码”页；使用 50Hz 高清全刷（约 4.1s）保证最大对比度。WiFi 二维码会把 SSID/密码显示在屏幕上。</span>
+    </div>
   </section>
 
   <section class="card">
@@ -126,7 +154,7 @@ button:disabled{opacity:.45;cursor:default}
 <script>
 const W=400,H=300,STRIDE=W/8;
 const $=id=>document.getElementById(id);
-const APP_CN={home:'主菜单',clock:'时钟',notes:'记事',image:'图片',settings:'设置'};
+const APP_CN={home:'主菜单',clock:'时钟',notes:'记事',image:'图片',qr:'二维码',settings:'设置'};
 
 function log(msg,cls){
   const el=$('log');
@@ -162,7 +190,7 @@ const remote=$('remoteScreen'), rctx=remote.getContext('2d');
 let remoteBusy=false, remoteSeq=0;
 function setRemoteBusy(b){
   remoteBusy=b;
-  document.querySelectorAll('.pad button,.apps button').forEach(x=>{x.disabled=b;});
+  document.querySelectorAll('.pad button,.apps button,#btnQrText,#btnQrWifi,#btnQrClear').forEach(x=>{x.disabled=b;});
 }
 function drawRemote(buf){
   const out=rctx.createImageData(W,H);
@@ -227,6 +255,28 @@ $('btnNote').addEventListener('click',async()=>{
   }catch(e){ log('发送失败：'+e.message,'err'); }
   finally{ setRemoteBusy(false); }
 });
+async function qrAction(path,body,label){
+  if(remoteBusy) return;
+  setRemoteBusy(true);
+  try{
+    const j=await api(path,body);
+    log(label+'：'+j.ms+'ms，'+j.qrModules+' 模块','ok');
+    await refreshRemote(true);
+  }catch(e){ log(label+'失败：'+e.message,'err'); }
+  finally{ setRemoteBusy(false); }
+}
+$('btnQrText').addEventListener('click',()=>{
+  const t=$('qrText').value;
+  if(!t.trim()){ log('请输入二维码文字','warn'); return; }
+  qrAction('/api/qr?type=text',t,'生成文字二维码');
+});
+$('btnQrWifi').addEventListener('click',()=>{
+  const s=$('qrSsid').value.trim(), p=$('qrPass').value;
+  if(!s){ log('请输入 WiFi SSID','warn'); return; }
+  qrAction('/api/qr?type=wifi&ssid='+encodeURIComponent(s)+'&pass='+encodeURIComponent(p),null,'生成 WiFi 二维码');
+});
+$('btnQrClear').addEventListener('click',()=>qrAction('/api/qr?type=clear',null,'清空二维码'));
+
 async function loadNote(){
   try{
     const r=await fetch('/api/note',{cache:'no-store'});

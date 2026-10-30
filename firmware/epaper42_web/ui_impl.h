@@ -1,5 +1,6 @@
 #include "ui.h"
 #include "ui_font.h"
+#include "qrcodegen.h"
 #include <WiFi.h>
 #include <Preferences.h>
 #include <time.h>
@@ -17,13 +18,19 @@ constexpr int IMGSZ = panel42::IMGSZ;
 constexpr uint8_t INK = 0;    // black pixel
 constexpr uint8_t PAPER = 1;  // white pixel
 
-enum class App { HOME, CLOCK, NOTES, IMAGE, SETTINGS };
+enum class App { HOME, CLOCK, NOTES, IMAGE, SETTINGS, QR };
 App app = App::HOME;
 int menuSel = 0;
 int notePage = 0;
 String note;
 bool hasImage = false;
 uint8_t imageFb[IMGSZ];
+String qrPayload, qrType;
+bool qrValid = false;
+int qrSize = 0;
+uint8_t qrBuf[qrcodegen_BUFFER_LEN_MAX];
+uint8_t qrTemp[qrcodegen_BUFFER_LEN_MAX];
+uint8_t qrCand[qrcodegen_BUFFER_LEN_MAX];
 panel42::Timings lastT;
 int lastMin = -1;
 Preferences prefs;
@@ -259,11 +266,20 @@ void iconGear(int x, int y, uint8_t c) {
   drawLine(x + 19, y + 5, x + 17, y + 7, c);
   drawLine(x + 7, y + 17, x + 5, y + 19, c);
 }
+void iconQr(int x, int y, uint8_t c) {
+  drawRect(x + 2, y + 2, 7, 7, c);   drawRect(x + 4, y + 4, 3, 3, c);
+  drawRect(x + 15, y + 2, 7, 7, c);  drawRect(x + 17, y + 4, 3, 3, c);
+  drawRect(x + 2, y + 15, 7, 7, c);  drawRect(x + 4, y + 17, 3, 3, c);
+  fillRect(x + 12, y + 12, 2, 2, c);
+  fillRect(x + 15, y + 15, 2, 2, c);
+  fillRect(x + 18, y + 12, 2, 2, c);
+}
 void iconFor(int i, int x, int y, uint8_t c) {
   switch (i) {
     case 0: iconClock(x, y, c); break;
     case 1: iconNote(x, y, c); break;
     case 2: iconImage(x, y, c); break;
+    case 3: iconQr(x, y, c); break;
     default: iconGear(x, y, c); break;
   }
 }
@@ -295,22 +311,22 @@ void drawStatus(const char* title) {
 }
 
 // ---------------- apps ----------------
-const char* MENU[] = {"时钟", "记事", "图片", "设置"};
+const char* MENU[] = {"时钟", "记事", "图片", "二维码", "设置"};
 
 void drawHome() {
   fillRect(0, 0, W, H, PAPER);
   drawStatus("PDA");
   drawText(20, 34, "主菜单", 2, INK);
   drawText(300, 42, "PDA", 1, INK);
-  const int top = 86, ih = 44;
-  for (int i = 0; i < 4; i++) {
+  const int top = 78, ih = 36;
+  for (int i = 0; i < 5; i++) {
     int y = top + i * ih;
     bool sel = (i == menuSel);
-    if (sel) fillRect(12, y, 376, 38, INK);
+    if (sel) fillRect(12, y, 376, 34, INK);
     uint8_t ink = sel ? PAPER : INK;
-    iconFor(i, 27, y + 7, ink);
-    drawText(66, y + 10, MENU[i], 1, ink);
-    if (sel) drawText(368, y + 10, ">", 1, ink);
+    iconFor(i, 27, y + 5, ink);
+    drawText(66, y + 8, MENU[i], 1, ink);
+    if (sel) drawText(368, y + 8, ">", 1, ink);
   }
   hline(12, 270, 376, INK);
   drawText(14, 276, "↑↓ 选择   OK 进入", 1, INK);
@@ -396,6 +412,30 @@ void drawSettingsApp() {
   drawText(20, 266, "Back 返回", 1, INK);
 }
 
+void drawQrApp() {
+  if (qrValid) {
+    fillRect(0, 0, W, H, PAPER);
+    int n = qrSize;
+    int scale = (W / (n + 8) < H / (n + 8)) ? W / (n + 8) : H / (n + 8);
+    if (scale < 1) scale = 1;
+    int x0 = (W - n * scale) / 2;
+    int y0 = (H - n * scale) / 2;
+    for (int y = 0; y < n; y++)
+      for (int x = 0; x < n; x++)
+        if (qrcodegen_getModule(qrBuf, x, y))
+          fillRect(x0 + x * scale, y0 + y * scale, scale, scale, INK);
+    return;
+  }
+  fillRect(0, 0, W, H, PAPER);
+  drawStatus("二维码");
+  drawText(20, 70, "还没有二维码。", 1, INK);
+  drawText(20, 100, "网页“二维码”或串口：", 1, INK);
+  drawText(20, 124, "qr 你好", 1, INK);
+  drawText(20, 148, "qr wifi \"SSID\" \"密码\"", 1, INK);
+  hline(20, 258, 360, INK);
+  drawText(20, 266, "Back 返回", 1, INK);
+}
+
 void drawImageApp() {
   if (hasImage) {
     memcpy(fb, imageFb, IMGSZ);
@@ -410,6 +450,25 @@ void drawImageApp() {
   drawText(20, 266, "Back 返回", 1, INK);
 }
 
+String qrEscape(const String& s) {
+  String o;
+  for (size_t i = 0; i < s.length(); i++) {
+    char c = s[i];
+    if (c == '\\' || c == ';' || c == ',' || c == ':' || c == '"') o += '\\';
+    o += c;
+  }
+  return o;
+}
+
+int encodeQr(const String& payload) {
+  if (payload.length() == 0) return 0;
+  bool ok = qrcodegen_encodeText(payload.c_str(), qrTemp, qrCand,
+                                 qrcodegen_Ecc_MEDIUM, 1, 13,
+                                 qrcodegen_Mask_AUTO, true);
+  if (!ok) return 0;
+  return qrcodegen_getSize(qrCand);
+}
+
 void render() {
   switch (app) {
     case App::HOME: drawHome(); break;
@@ -417,6 +476,7 @@ void render() {
     case App::NOTES: drawNotesApp(); break;
     case App::IMAGE: drawImageApp(); break;
     case App::SETTINGS: drawSettingsApp(); break;
+    case App::QR: drawQrApp(); break;
   }
 }
 
@@ -452,6 +512,12 @@ void commit(bool forceFull) {
 
 void renderAndCommit(bool forceFull) {
   int m = currentMinute();   // minute used by this render
+  if (app == App::QR && qrValid && forceFull) {
+    render();
+    panel42::fullHq(fb, lastT);   // QR: slowest 50 Hz waveform for maximum contrast
+    lastMin = m;
+    return;
+  }
   render();
   commit(forceFull);
   if (forceFull) lastMin = m;
@@ -464,6 +530,7 @@ bool setAppByName(const String& n) {
   else if (s == "notes" || s == "note") app = App::NOTES;
   else if (s == "image" || s == "picture") app = App::IMAGE;
   else if (s == "settings" || s == "setting") app = App::SETTINGS;
+  else if (s == "qr" || s == "qrcode" || s == "code") app = App::QR;
   else return false;
   return true;
 }
@@ -480,6 +547,7 @@ const char* appName() {
     case App::NOTES: return "notes";
     case App::IMAGE: return "image";
     case App::SETTINGS: return "settings";
+    case App::QR: return "qr";
   }
   return "home";
 }
@@ -494,6 +562,9 @@ String stateJson() {
   s += ",\"page\":"; s += notePage;
   s += ",\"pages\":"; s += notePages();
   s += ",\"hasImage\":"; s += (hasImage ? 1 : 0);
+  s += ",\"qr\":"; s += (qrValid ? 1 : 0);
+  s += ",\"qrType\":\""; s += qrType; s += "\"";
+  s += ",\"qrModules\":"; s += qrSize;
   s += ",\"ms\":"; s += (unsigned long)lastT.total;
   s += ",\"refresh\":"; s += (unsigned long)lastT.refresh;
   s += ",\"ip\":\""; s += WiFi.localIP().toString(); s += "\"";
@@ -524,10 +595,10 @@ panel42::Timings key(const String& k) {
   if (s == "home") app = App::HOME;
   else if (s == "back") app = App::HOME;
   else if (s == "up") {
-    if (app == App::HOME) { menuSel = (menuSel + 3) % 4; homeMoved = true; }
+    if (app == App::HOME) { menuSel = (menuSel + 4) % 5; homeMoved = true; }
     else if (app == App::NOTES && notePage > 0) { notePage--; pageChanged = true; }
   } else if (s == "down") {
-    if (app == App::HOME) { menuSel = (menuSel + 1) % 4; homeMoved = true; }
+    if (app == App::HOME) { menuSel = (menuSel + 1) % 5; homeMoved = true; }
     else if (app == App::NOTES && notePage + 1 < notePages()) { notePage++; pageChanged = true; }
   } else if (s == "left") {
     if (app == App::NOTES && notePage > 0) { notePage--; pageChanged = true; }
@@ -539,9 +610,10 @@ panel42::Timings key(const String& k) {
         case 0: app = App::CLOCK; break;
         case 1: app = App::NOTES; notePage = 0; break;
         case 2: app = App::IMAGE; break;
-        case 3: app = App::SETTINGS; break;
+        case 3: app = App::QR; break;
+        case 4: app = App::SETTINGS; break;
       }
-    } else if (app == App::IMAGE) {
+    } else if (app == App::IMAGE || app == App::QR) {
       app = App::HOME;
     }
   }
@@ -581,6 +653,50 @@ void setImage(const uint8_t* img, bool alreadyOnScreen) {
   else renderAndCommit(true);
 }
 
+bool setQr(const String& payload, const String& type) {
+  int n = encodeQr(payload);
+  if (n == 0) return false;
+  memcpy(qrBuf, qrCand, sizeof(qrBuf));
+  qrPayload = payload;
+  qrType = type;
+  qrSize = n;
+  qrValid = true;
+  app = App::QR;
+  renderAndCommit(true);
+  return true;
+}
+
+bool setWifiQr(const String& ssid, const String& pass) {
+  if (ssid.length() == 0 || ssid.length() > 32) return false;
+  if (pass.length() > 0 && (pass.length() < 8 || pass.length() > 63)) return false;
+  String p = "WIFI:T:";
+  p += pass.length() ? "WPA" : "nopass";
+  p += ";S:"; p += qrEscape(ssid); p += ";";
+  if (pass.length() > 0) {
+    p += "P:"; p += qrEscape(pass); p += ";";
+  }
+  p += ";";
+  return setQr(p, "wifi");
+}
+
+void clearQr() {
+  qrValid = false;
+  qrPayload = "";
+  qrType = "";
+  qrSize = 0;
+  app = App::QR;
+  renderAndCommit(true);
+}
+
+String qrSummary() {
+  String s = "valid=";
+  s += (qrValid ? 1 : 0);
+  s += " type="; s += qrType;
+  s += " modules="; s += qrSize;
+  s += " bytes="; s += qrPayload.length();
+  return s;
+}
+
 void onClear() {
   memset(fb, 0xFF, IMGSZ);
   app = App::HOME;
@@ -598,7 +714,7 @@ void tick() {
       render();
       panel42::fullStd(fb, lastT);   // one clean full refresh per minute
     }
-  } else if (app != App::IMAGE) {
+  } else if (app != App::IMAGE && app != App::QR) {
     if (minute != lastMin) {
       lastMin = minute;
       render();
