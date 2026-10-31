@@ -268,6 +268,15 @@ static void handleLine(const String& raw) {
     return;
   }
 
+  if (cmd == "pet") {
+    String rest;
+    int sp = line.indexOf(' ');
+    if (sp >= 0) { rest = line.substring(sp + 1); rest.trim(); }
+    ui::petCommand(rest);
+    lastActivity = millis();
+    return;
+  }
+
   if (cmd == "note") {
     String rest;
     int sp = line.indexOf(' ');

@@ -182,8 +182,8 @@ static uint8_t dPasses = 0;
 static uint8_t dSel[20];
 static int dCur = 0;
 static String dMsg;
-static DCard dCand[64][20];
-static uint8_t dCandN[64];
+static DCard dCand[56][20];
+static uint8_t dCandN[56];
 
 static String dRankStr(uint8_t r) {
   if (r <= 10) return String((int)r);
@@ -357,7 +357,7 @@ static void dAiPlay(int p) {
   DCard (*cand)[20] = dCand;
   uint8_t* cn = dCandN;
   int nc = 0;
-  #define ADDC(n) do { if (nc < 64) { cn[nc] = (n); nc++; } } while (0)
+  #define ADDC(n) do { if (nc < 56) { cn[nc] = (n); nc++; } } while (0)
   uint8_t cnt[18] = {0};
   for (int i = 0; i < dN[p]; i++) cnt[dHand[p][i].r]++;
   // singles

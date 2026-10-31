@@ -20,7 +20,7 @@ constexpr int IMGSZ = panel42::IMGSZ;
 constexpr uint8_t INK = 0;    // black pixel
 constexpr uint8_t PAPER = 1;  // white pixel
 
-enum class App { HOME, CLOCK, NOTES, IMAGE, SETTINGS, QR, NEWS, GAMES, GOMOKU, DDZ };
+enum class App { HOME, CLOCK, NOTES, IMAGE, SETTINGS, QR, NEWS, PET, GAMES, GOMOKU, DDZ };
 App app = App::HOME;
 int menuSel = 0;
 int notePage = 0;
@@ -289,6 +289,12 @@ void iconNews(int x, int y, uint8_t c) {
   hline(x + 5, y + 11, 14, c);
   hline(x + 5, y + 15, 9, c);
 }
+void iconPet(int x, int y, uint8_t c) {
+  fillCircle(x + 12, y + 15, 5, c);
+  fillCircle(x + 5, y + 7, 3, c);
+  fillCircle(x + 12, y + 5, 3, c);
+  fillCircle(x + 19, y + 7, 3, c);
+}
 void iconGame(int x, int y, uint8_t c) {
   drawRect(x + 2, y + 6, 20, 12, c);
   fillCircle(x + 7, y + 12, 2, c);
@@ -304,6 +310,7 @@ void iconFor(int i, int x, int y, uint8_t c) {
     case 3: iconQr(x, y, c); break;
     case 4: iconGame(x, y, c); break;
     case 5: iconNews(x, y, c); break;
+    case 6: iconPet(x, y, c); break;
     default: iconGear(x, y, c); break;
   }
 }
@@ -341,22 +348,22 @@ void drawStatus(const char* title, const char* extra = nullptr) {
 }
 
 // ---------------- apps ----------------
-const char* MENU[] = {"时钟", "记事", "图片", "二维码", "游戏", "新闻", "设置"};
+const char* MENU[] = {"时钟", "记事", "图片", "二维码", "游戏", "新闻", "宠物", "设置"};
 
 void drawHome() {
   fillRect(0, 0, W, H, PAPER);
   drawStatus(hostLabel.c_str());
   drawText(20, 34, "主菜单", 2, INK);
   drawText(300, 42, "PDA", 1, INK);
-  const int top = 66, ih = 28;
-  for (int i = 0; i < 7; i++) {
+  const int top = 60, ih = 25;
+  for (int i = 0; i < 8; i++) {
     int y = top + i * ih;
     bool sel = (i == menuSel);
-    if (sel) fillRect(12, y, 376, 26, INK);
+    if (sel) fillRect(12, y, 376, 24, INK);
     uint8_t ink = sel ? PAPER : INK;
-    iconFor(i, 27, y + 1, ink);
-    drawText(66, y + 5, MENU[i], 1, ink);
-    if (sel) drawText(368, y + 5, ">", 1, ink);
+    iconFor(i, 27, y + 0, ink);
+    drawText(66, y + 4, MENU[i], 1, ink);
+    if (sel) drawText(368, y + 4, ">", 1, ink);
   }
   hline(12, 270, 376, INK);
   drawText(14, 276, "↑↓ 选择   OK 进入", 1, INK);
@@ -482,6 +489,7 @@ void drawImageApp() {
 
 void renderAndCommit(bool forceFull);   // defined below, used by news loading screens
 #include "news_impl.h"
+#include "pet_impl.h"
 
 String qrEscape(const String& s) {
   String o;
@@ -511,6 +519,7 @@ void render() {
     case App::SETTINGS: drawSettingsApp(); break;
     case App::QR: drawQrApp(); break;
     case App::NEWS: drawNewsApp(); break;
+    case App::PET: drawPetApp(); break;
     case App::GAMES: drawGamesApp(); break;
     case App::GOMOKU: drawGomokuApp(); break;
     case App::DDZ: drawDdzApp(); break;
@@ -569,6 +578,7 @@ bool setAppByName(const String& n) {
   else if (s == "settings" || s == "setting") app = App::SETTINGS;
   else if (s == "qr" || s == "qrcode" || s == "code") app = App::QR;
   else if (s == "news" || s == "xinwen") { newsReset(); app = App::NEWS; }
+  else if (s == "pet" || s == "chongwu") { app = App::PET; petEnter(); }
   else if (s == "games" || s == "game") app = App::GAMES;
   else if (s == "gomoku") { gReset(true); app = App::GOMOKU; }
   else if (s == "ddz" || s == "doudizhu") { dReset(true); app = App::DDZ; }
@@ -579,6 +589,28 @@ bool setAppByName(const String& n) {
 } // namespace
 
 // ---------------- public ----------------
+void petCommand(const String& line) {
+  String cmd = line; cmd.trim(); cmd.toLowerCase();
+  if (cmd.length() == 0 || cmd == "status" || cmd == "stat") { petPrintStatus(); return; }
+  if (cmd == "feed") { petDoAction(0); petPrintStatus(); return; }
+  if (cmd == "play") { petDoAction(1); petPrintStatus(); return; }
+  if (cmd == "sleep") { petDoAction(2); petPrintStatus(); return; }
+  if (cmd == "clean") { petDoAction(3); petPrintStatus(); return; }
+  if (cmd == "pet" || cmd == "touch") { petDoAction(4); petPrintStatus(); return; }
+  if (cmd == "work") { petDoAction(5); petPrintStatus(); return; }
+  if (cmd == "adopt cat" || cmd == "adopt 0") { petReset(0); petPrintStatus(); return; }
+  if (cmd == "adopt fox" || cmd == "adopt 1") { petReset(1); petPrintStatus(); return; }
+  if (cmd == "reset") { petReset(petSpecies); petPrintStatus(); return; }
+  if (cmd == "save") { petSave(); Serial.println("pet: saved"); return; }
+  if (cmd.startsWith("name ")) {
+    String n = line.substring(5); n.trim();
+    if (n.length() > 0 && n.length() <= 12) { petName = n; petSave(); Serial.printf("pet: name=%s\n", petName.c_str()); }
+    else Serial.println("pet: name must be 1-12 bytes");
+    return;
+  }
+  Serial.println("usage: pet [status|feed|play|sleep|clean|touch|work|adopt cat|fox|name <n>|reset|save]");
+}
+
 const uint8_t* screen() { return fb; }
 
 const char* appName() {
@@ -590,6 +622,7 @@ const char* appName() {
     case App::SETTINGS: return "settings";
     case App::QR: return "qr";
     case App::NEWS: return "news";
+    case App::PET: return "pet";
     case App::GAMES: return "games";
     case App::GOMOKU: return "gomoku";
     case App::DDZ: return "ddz";
@@ -641,6 +674,11 @@ panel42::Timings key(const String& k) {
     renderAndCommit(true);
     return lastT;
   }
+  if (app == App::PET) {
+    petKey(s);
+    renderAndCommit(true);
+    return lastT;
+  }
   if (app == App::GAMES || app == App::GOMOKU || app == App::DDZ) {
     gamesKey(s);
     renderAndCommit(true);
@@ -651,10 +689,10 @@ panel42::Timings key(const String& k) {
   if (s == "home") app = App::HOME;
   else if (s == "back") app = App::HOME;
   else if (s == "up") {
-    if (app == App::HOME) { menuSel = (menuSel + 6) % 7; homeMoved = true; }
+    if (app == App::HOME) { menuSel = (menuSel + 7) % 8; homeMoved = true; }
     else if (app == App::NOTES && notePage > 0) { notePage--; pageChanged = true; }
   } else if (s == "down") {
-    if (app == App::HOME) { menuSel = (menuSel + 1) % 7; homeMoved = true; }
+    if (app == App::HOME) { menuSel = (menuSel + 1) % 8; homeMoved = true; }
     else if (app == App::NOTES && notePage + 1 < notePages()) { notePage++; pageChanged = true; }
   } else if (s == "left") {
     if (app == App::NOTES && notePage > 0) { notePage--; pageChanged = true; }
@@ -669,7 +707,8 @@ panel42::Timings key(const String& k) {
         case 3: app = App::QR; break;
         case 4: app = App::GAMES; break;
         case 5: newsReset(); app = App::NEWS; break;
-        case 6: app = App::SETTINGS; break;
+        case 6: app = App::PET; petEnter(); break;
+        case 7: app = App::SETTINGS; break;
       }
     } else if (app == App::IMAGE || app == App::QR) {
       app = App::HOME;
@@ -770,6 +809,7 @@ void onClear() {
 }
 
 void tick() {
+  petTick();
   if (!panel42::isPowered()) return;
   struct tm t;
   bool ok = nowTm(t);
@@ -780,7 +820,7 @@ void tick() {
       render();
       panel42::fullStd(fb, lastT);   // one clean full refresh per minute
     }
-  } else if (app != App::IMAGE && app != App::QR && app != App::GAMES && app != App::GOMOKU && app != App::DDZ && app != App::NEWS) {
+  } else if (app != App::IMAGE && app != App::QR && app != App::GAMES && app != App::GOMOKU && app != App::DDZ && app != App::NEWS && app != App::PET) {
     if (minute != lastMin) {
       lastMin = minute;
       render();

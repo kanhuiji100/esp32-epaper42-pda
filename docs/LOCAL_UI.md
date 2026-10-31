@@ -68,6 +68,15 @@ rendered in the browser (the browser only mirrors the device framebuffer).
 - Payload and password live in RAM only; `qr clear` or reboot removes them.
 - The placeholder (no code yet) uses the normal standard waveform.
 
+### Pet
+
+- Adopt screen: choose 猫娘 / 狐娘 with `←→`, confirm with `OK`.
+- Main screen: sprite, name/stage/age/coins, health + four stat bars, message
+  line and a six-item action bar (喂食/玩耍/睡觉/清洁/抚摸/打工).
+- Time-based decay and offline ageing; state saved in NVS (`pet` namespace).
+- `ui::tick()` calls `petTick()`: 1 Hz decay, partial refresh every minute and a
+  full refresh every 10 minutes to clear ghosting.
+
 ### News
 
 - Category list: 要闻 / 国内 / 国际 / 社会 / 体育 / 财经 / 科技.

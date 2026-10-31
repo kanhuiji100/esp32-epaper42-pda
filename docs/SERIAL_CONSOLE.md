@@ -72,7 +72,8 @@ then falls back to `secrets.h`.
 | Command | Result |
 |---|---|
 | `key up\|down\|left\|right\|ok\|back\|home` | call the same `ui::key()` used by the web remote |
-| `app home\|clock\|notes\|image\|qr\|news\|games\|gomoku\|ddz\|settings` | switch app / start game / open news |
+| `app home\|clock\|notes\|image\|qr\|news\|pet\|games\|gomoku\|ddz\|settings` | switch app / start game / open news / pet |
+| `pet [status\|feed\|play\|sleep\|clean\|touch\|work\|adopt cat\|fox\|name <n>\|reset\|save]` | electronic pet status/actions |
 | `note` | print current note |
 | `note <text>` | set note (UTF-8, one line) and save to NVS |
 | `note clear` | clear note |

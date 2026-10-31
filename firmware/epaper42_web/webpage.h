@@ -85,6 +85,7 @@ button:disabled{opacity:.45;cursor:default}
           <button data-app="qr">二维码</button>
           <button data-app="games">游戏</button>
           <button data-app="news">新闻</button>
+          <button data-app="pet">宠物</button>
           <button data-app="settings">设置</button>
         </div>
       </div>
@@ -167,7 +168,7 @@ button:disabled{opacity:.45;cursor:default}
 <script>
 const W=400,H=300,STRIDE=W/8;
 const $=id=>document.getElementById(id);
-const APP_CN={home:'主菜单',clock:'时钟',notes:'记事',image:'图片',qr:'二维码',news:'新闻',games:'游戏',gomoku:'五子棋',ddz:'斗地主',settings:'设置'};
+const APP_CN={home:'主菜单',clock:'时钟',notes:'记事',image:'图片',qr:'二维码',news:'新闻',pet:'宠物',games:'游戏',gomoku:'五子棋',ddz:'斗地主',settings:'设置'};
 
 function log(msg,cls){
   const el=$('log');
