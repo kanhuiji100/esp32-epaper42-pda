@@ -301,13 +301,19 @@ void drawWifi(int x, int y) {
     drawLine(x + 14, y, x, y + 12, INK);
   }
 }
-void drawStatus(const char* title) {
+void drawStatus(const char* title, const char* extra = nullptr) {
   fillRect(0, 0, W, 26, PAPER);
   drawText(8, 5, String(title), 1, INK);
   String hm = timeHM();
   int tw = textWidth(hm, 1);
   drawText(W - 8 - tw, 5, hm, 1, INK);
-  drawWifi(W - 8 - tw - 24, 7);
+  int wifiX = W - 8 - tw - 24;
+  drawWifi(wifiX, 7);
+  if (extra && extra[0]) {
+    String e(extra);
+    int ew = textWidth(e, 1);
+    drawText(wifiX - 8 - ew, 5, e, 1, INK);   // page number left of the Wi-Fi icon
+  }
   hline(0, 25, W, INK);
 }
 
@@ -350,7 +356,7 @@ void drawClockApp() {
 
 constexpr int NOTE_MAXW = 360;
 constexpr int NOTE_LINEH = 20;
-constexpr int NOTE_LINES = 9;
+constexpr int NOTE_LINES = 10;
 
 int notePages() {
   if (note.length() == 0) return 1;
@@ -377,23 +383,19 @@ int noteStart(int page) {
 
 void drawNotesApp() {
   fillRect(0, 0, W, H, PAPER);
-  drawStatus("记事");
   int pages = notePages();
   if (notePage < 0) notePage = 0;
   if (notePage >= pages) notePage = pages - 1;
-  drawText(20, 34, "记事本", 1, INK);
   String pg = String(notePage + 1) + "/" + String(pages);
-  int pw = textWidth(pg, 1);
-  drawText(W - 20 - pw, 34, pg, 1, INK);
-  hline(20, 56, 360, INK);
+  drawStatus("记事", pg.c_str());
   if (note.length() == 0) {
     drawText(20, 72, "在网页输入文字，点“发送到记事”。", 1, INK);
   } else {
     int start = noteStart(notePage);
-    layoutText(20, 64, NOTE_MAXW, NOTE_LINEH, NOTE_LINES, note, 1, INK, true, start, nullptr);
+    layoutText(20, 40, NOTE_MAXW, NOTE_LINEH, NOTE_LINES, note, 1, INK, true, start, nullptr);
   }
-  hline(20, 258, 360, INK);
-  drawText(20, 266, "↑↓ 翻页   Back 返回", 1, INK);
+  hline(12, 270, 376, INK);
+  drawText(14, 276, "↑↓ 翻页   Back 返回", 1, INK);
 }
 
 void drawSettingsApp() {
@@ -410,8 +412,8 @@ void drawSettingsApp() {
   line(String("FLASH ") + String(ESP.getFlashChipSize() / 1024 / 1024) + " MB");
   line(String("UP    ") + String(millis() / 1000) + " s");
   line(String("WEB   http://") + WiFi.localIP().toString());
-  hline(20, 258, 360, INK);
-  drawText(20, 266, "Back 返回", 1, INK);
+  hline(12, 270, 376, INK);
+  drawText(14, 276, "Back 返回", 1, INK);
 }
 
 void drawQrApp() {
@@ -434,8 +436,8 @@ void drawQrApp() {
   drawText(20, 100, "网页“二维码”或串口：", 1, INK);
   drawText(20, 124, "qr 你好", 1, INK);
   drawText(20, 148, "qr wifi \"SSID\" \"密码\"", 1, INK);
-  hline(20, 258, 360, INK);
-  drawText(20, 266, "Back 返回", 1, INK);
+  hline(12, 270, 376, INK);
+  drawText(14, 276, "Back 返回", 1, INK);
 }
 
 void drawImageApp() {
@@ -448,8 +450,8 @@ void drawImageApp() {
   drawText(20, 70, "还没有图片。", 1, INK);
   drawText(20, 100, "在网页“图片上传”里选择图片，", 1, INK);
   drawText(20, 124, "点“全屏刷新”后会自动进入图片页。", 1, INK);
-  hline(20, 258, 360, INK);
-  drawText(20, 266, "Back 返回", 1, INK);
+  hline(12, 270, 376, INK);
+  drawText(14, 276, "Back 返回", 1, INK);
 }
 
 String qrEscape(const String& s) {

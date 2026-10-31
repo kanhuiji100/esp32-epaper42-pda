@@ -1,5 +1,13 @@
 # Changelog
 
+## v0.4.2 — 2026-10-31
+
+- Notes: removed the second title row; page number now sits in the top status bar
+  to the left of the Wi-Fi icon.
+- Notes body starts at y=40 and paginates at 10 lines/page.
+- Notes/Image/Settings/QR placeholder bottom hint bars unified with Home
+  (`hline y=270`, text `y=276`).
+
 ## v0.4.1 — 2026-10-31
 
 - "Refresh / 全屏清残影" now uses the **HQ 50 Hz waveform** (`refreshHq`,

@@ -37,11 +37,14 @@ rendered in the browser (the browser only mirrors the device framebuffer).
 ### Notes
 
 - Text comes from the web page (`POST /api/note`), UTF-8.
-- Wraps at 360 px; 9 lines/page; `↑↓`/`←→` page.
+- Wraps at 360 px; 10 lines/page; `↑↓`/`←→` page.
+- Page number is shown in the top status bar, immediately left of the Wi-Fi icon;
+  there is no second title row.
 - Stored in NVS namespace `pda`, key `note`; survives reboot.
 - Empty state shows a hint.
 - Body limit 4095 bytes; the page textarea limits to 1200 characters.
 - Page turns use a full standard refresh (~1 s).
+- The bottom hint bar uses the same `y=270` line / `y=276` text as Home.
 
 ### Image
 
