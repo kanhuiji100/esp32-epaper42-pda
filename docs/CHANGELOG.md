@@ -1,5 +1,11 @@
 # Changelog
 
+## v0.4.4 — 2026-10-31
+
+- Fixed notes pagination: when a page ended exactly at a newline, that newline was
+  kept as the first character of the next page and rendered as an empty first line
+  on pages 2+. The newline is now consumed with the page break.
+
 ## v0.4.3 — 2026-10-31
 
 - Notes: body moved up to y=28 and 12 lines/page (was y=40, 10 lines).

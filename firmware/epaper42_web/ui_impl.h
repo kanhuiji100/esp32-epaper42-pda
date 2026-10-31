@@ -183,7 +183,13 @@ int layoutText(int x, int y, int maxW, int lineH, int maxLines,
     i = utf8Next(s, i, cp);
     if (cp == '\n') {
       cx = x; cy += lineH; lines++;
-      if (lines > maxLines) { if (nextOffset) *nextOffset = save; return lines - 1; }
+      if (lines > maxLines) {
+        // Consume the newline that ends the last line of this page.  Pointing at
+        // `save` would leave it at the start of the next page, which rendered as
+        // an empty first line on pages 2+.
+        if (nextOffset) *nextOffset = i;
+        return lines - 1;
+      }
       continue;
     }
     if (cp == '\t') cp = ' ';

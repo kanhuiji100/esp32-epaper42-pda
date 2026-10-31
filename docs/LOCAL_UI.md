@@ -38,6 +38,8 @@ rendered in the browser (the browser only mirrors the device framebuffer).
 
 - Text comes from the web page (`POST /api/note`), UTF-8.
 - Wraps at 360 px; 12 lines/page; `↑↓`/`←→` page; body starts at y=28.
+- A page break consumes the trailing newline, so pages 2+ do not start with an
+  empty line.
 - Page number is shown in the top status bar, immediately left of the Wi-Fi icon;
   there is no second title row.
 - Stored in NVS namespace `pda`, key `note`; survives reboot.
