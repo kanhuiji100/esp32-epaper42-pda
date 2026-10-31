@@ -34,14 +34,14 @@ static bool hostnameSet(const String& name);   // defined with the Wi-Fi helpers
 
 
 // ---------------- HTTP helpers ----------------
-static String readLine(WiFiClient& c, uint32_t timeoutMs = 2000) {
+static String readLine(WiFiClient& c, uint32_t timeoutMs = 1000) {
   String s;
   s.reserve(96);
   uint32_t t0 = millis();
   while (millis() - t0 < timeoutMs) {
     while (c.available()) {
       char ch = (char)c.read();
-      if (ch == '\r\n') {
+      if (ch == '\n') {                       // end of line
         if (s.endsWith("\r")) s.remove(s.length() - 1);
         return s;
       }
@@ -212,7 +212,8 @@ static void setWebLogEnabled(bool on) { webLogEnabled = on; }
 static bool webLogEnabledState() { return webLogEnabled; }
 
 void handleClient(WiFiClient& c) {
-  c.setTimeout(2000);
+  c.setTimeout(1000);
+  c.setNoDelay(true);
   String req = readLine(c);
   if (req.length() == 0) { c.stop(); return; }
 

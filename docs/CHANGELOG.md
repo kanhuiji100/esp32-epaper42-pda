@@ -1,5 +1,14 @@
 # Changelog
 
+## v0.11.1 — 2026-10-31
+
+- Fixed the ~3 s HTTP latency: `readLine()` compared a `char` against the
+  multi-character literal `'\r\n'`, so every header line waited for the 2 s
+  timeout. It now stops on `'\n'` and strips a trailing `'\r'`.
+- Per-client `setNoDelay(true)` and a 1 s socket timeout.
+- Result: `/api/status` ~35–45 ms, `/api/screen` (15 KB) ~70 ms; other clients
+  are no longer starved by the polling browser.
+
 ## v0.11.0 — 2026-10-31
 
 - Pet UI fixes: the adoption title no longer overlaps the status bar or the
