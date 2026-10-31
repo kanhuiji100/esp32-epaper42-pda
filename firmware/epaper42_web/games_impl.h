@@ -495,22 +495,45 @@ static bool dKey(const String& k) {
   return true;
 }
 
-// 7x9 suit icons: spade, heart, diamond, club, joker star.
-static const uint8_t SUIT_ICON[5][9] = {
-  {0b0001000,0b0011100,0b0111110,0b1111111,0b1111111,0b0111110,0b0011100,0b0011100,0b0001000}, // spade
-  {0b0110110,0b1111111,0b1111111,0b1111111,0b0111110,0b0011100,0b0001000,0b0000000,0b0000000}, // heart
-  {0b0001000,0b0011100,0b0111110,0b1111111,0b1111111,0b0111110,0b0011100,0b0001000,0b0000000}, // diamond
-  {0b0011100,0b0011100,0b1111111,0b1111111,0b0011100,0b0111110,0b0111110,0b0011100,0b0001000}, // club
-  {0b0001000,0b0001000,0b1111111,0b0111110,0b0111110,0b0101010,0b0000000,0b0000000,0b0000000}, // joker star
-};
-
+// Procedural 13x13 suit icons, drawn with the UI primitives.
 static void dDrawSuitIcon(int x, int y, uint8_t suit, uint8_t c) {
-  if (suit > 4) suit = 4;
-  for (int row = 0; row < 9; row++) {
-    uint8_t bits = SUIT_ICON[suit][row];
-    for (int col = 0; col < 7; col++) {
-      if (bits & (1 << (6 - col))) putPx(x + col, y + row, c);
-    }
+  int cx = x + 6;
+  switch (suit) {
+    case 0:  // spade: pointed top, tapering body, narrow stem + base
+      for (int row = 0; row <= 8; row++) {
+        int half = (row <= 4) ? row : (8 - row);
+        fillRect(cx - half, y + row, 2 * half + 1, 1, c);
+      }
+      fillRect(cx, y + 9, 1, 3, c);
+      fillRect(cx - 1, y + 12, 3, 1, c);
+      break;
+    case 1:  // heart: two lobes + triangle
+      fillCircle(cx - 3, y + 4, 3, c);
+      fillCircle(cx + 3, y + 4, 3, c);
+      for (int row = 0; row <= 7; row++) {
+        int half = 5 - row;
+        if (half >= 0) fillRect(cx - half, y + 5 + row, 2 * half + 1, 1, c);
+      }
+      break;
+    case 2:  // diamond: pure rhombus, widest in the middle
+      for (int row = 0; row <= 12; row++) {
+        int half = (row <= 6) ? row : (12 - row);
+        fillRect(cx - half, y + row, 2 * half + 1, 1, c);
+      }
+      break;
+    case 3:  // club: three circles + stem + base
+      fillCircle(cx, y + 3, 2, c);
+      fillCircle(cx - 3, y + 6, 2, c);
+      fillCircle(cx + 3, y + 6, 2, c);
+      fillRect(cx, y + 7, 1, 4, c);
+      fillRect(cx - 2, y + 11, 5, 1, c);
+      break;
+    default:  // joker star
+      drawLine(cx, y + 1, cx, y + 11, c);
+      drawLine(cx - 4, y + 5, cx + 4, y + 5, c);
+      drawLine(cx - 2, y + 3, cx + 2, y + 7, c);
+      drawLine(cx + 2, y + 3, cx - 2, y + 7, c);
+      break;
   }
 }
 
@@ -519,7 +542,7 @@ static void dDrawCard(int x, int y, const DCard& c, bool selected) {
   fillRect(x, yy, 19, 34, PAPER);
   drawRect(x, yy, 19, 34, INK);
   drawText(x + 1, yy + 2, dRankStr(c.r), 1, INK);
-  dDrawSuitIcon(x + 2, yy + 22, dSuit(c.s), INK);
+  dDrawSuitIcon(x + 3, yy + 20, dSuit(c.s), INK);
 }
 
 static void drawDdzApp() {

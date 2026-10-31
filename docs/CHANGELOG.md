@@ -1,5 +1,11 @@
 # Changelog
 
+## v0.6.2 — 2026-10-31
+
+- Redrew Dou Dizhu suit icons procedurally: spade now has a clear pointed top,
+  tapered body and stem; club uses three circles + stem; diamond stays a pure
+  rhombus. Spade/diamond are much easier to tell apart.
+
 ## v0.6.1 — 2026-10-31
 
 - Dou Dizhu card faces now use 7×9 pixel suit icons (spade/heart/diamond/club)

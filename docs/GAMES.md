@@ -27,7 +27,7 @@ clean on the old 4.2″ panel. The status bar shows the current turn / result.
   `↓` = 不叫). If all pass, the hand is redealt.
 - Supported combinations: single, pair, triple, triple + single, bomb, rocket,
   and single straights (≥5). Straight pairs / triple + pair are not implemented.
-- Cards show the rank on top and a 7×9 pixel suit icon (spade/heart/diamond/club) below; jokers show 小/大 with a star.
+- Cards show the rank on top and a procedural 13×13 suit icon below: spade (pointed top + stem), heart (two lobes), diamond (rhombus), club (three circles + stem); jokers show 小/大 with a star.
 
 ![Dou Dizhu card faces](images/ddz_suits.png)
 - Play phase:
