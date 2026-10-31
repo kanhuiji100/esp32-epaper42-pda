@@ -1,5 +1,15 @@
 # Changelog
 
+## v0.9.0 — 2026-10-31
+
+- Home is now a 3×3 app grid instead of a single crowded column; the last row is
+  centred and the D-pad moves in two dimensions.
+- Pet sprites redrawn at 80×80 (shown at 2×) with cleaner chibi line art: the cat
+  has cat ears/twin tails/tail bow, the fox has big ears/ear flower/fluffy tail.
+- Pet screen no longer uses partial refresh; stat/breathing updates run every
+  2 minutes with a full refresh, fixing the ghosting/overlap seen on the panel.
+- `pet unadopt` console command to re-run adoption.
+
 ## v0.8.1 — 2026-10-31
 
 - Pet offline time is now gentle: the pet sleeps while the device is off, ages

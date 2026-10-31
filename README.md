@@ -16,7 +16,8 @@ The project also documents how the stock Waveshare loader was sped up from
 ## Highlights
 
 - **Local UI on the ESP32** — 400×300 1bpp framebuffer, GB2312 + ASCII bitmap font.
-- **Nine screens** — Home, Clock, Notes, Image, QR, Games, News, Pet, Settings.
+- **Nine screens** — a 3×3 Home grid plus Clock, Notes, Image, QR, Games, News,
+  Pet, Settings.
 - **Web remote** — live 15 KB screen mirror, D-pad, app shortcuts, note editor,
   text/Wi-Fi QR generator.
 - **Fast refresh** — full image in **0.61 s** (device), **0.69–0.80 s** round trip.
@@ -34,7 +35,8 @@ The project also documents how the stock Waveshare loader was sped up from
   社会/体育/财经/科技), opens articles as plain text and paginates them.
 - **Electronic pet** — adopt a cat or fox, keep hunger/happiness/energy/cleanliness
   and health, feed/play/sleep/clean/pet/work, with NVS persistence and offline
-  ageing. Sprites are original pixel art inspired by the reference images.
+  ageing. 80×80 chibi sprites; the pet screen always uses full refresh to avoid
+  e-paper ghosting.
 - **Custom hostname** — default `epaper42`; change it from the web card, serial
   console or API. The Home status bar and Settings show it, and mDNS serves
   `http://<hostname>.local` immediately.

@@ -1,113 +1,127 @@
 #!/usr/bin/env python3
-"""Generate 48x48 1bpp pet sprites (cat / fox) as a C header.
-Original chibi pixel art inspired by the user's cat.jpg / fox.jpg references:
-cat = lavender twin-tail catgirl with a bow on her tail; fox = pink foxgirl with
-big ears, a flower and a fluffy tail.
+"""Generate 80x80 1bpp pet sprites (cat / fox) as a C header.
+
+Clean chibi line-art inspired by the user's cat.jpg / fox.jpg references:
+cat = cat ears + twin tails + tail bow; fox = big ears + ear flower + fluffy tail.
 """
 from PIL import Image, ImageDraw
 
-S = 48
+S = 80
 
 def canvas():
     return Image.new('L', (S, S), 255)
 
+def dot(d, x, y):
+    if 0 <= x < S and 0 <= y < S:
+        d.point((x, y), fill=0)
+
 def dither(d, box, step=2):
     x0, y0, x1, y1 = box
-    for y in range(y0, y1):
-        for x in range(x0, x1):
+    for y in range(max(0, y0), min(S, y1)):
+        for x in range(max(0, x0), min(S, x1)):
             if ((x + y) % step) == 0:
-                d.point((x, y), fill=0)
+                dot(d, x, y)
 
-def outline(d, pts, fill=255, width=1):
-    d.polygon(pts, fill=fill, outline=0)
+def shape(d, pts, w=1):
+    d.polygon(pts, fill=255)
+    d.line(list(pts) + [pts[0]], fill=0, width=w, joint='curve')
+
+def ellipse(d, box, w=1):
+    d.ellipse(box, fill=255, outline=0, width=w)
 
 def cat(frame):
     im = canvas(); d = ImageDraw.Draw(im)
     sway = 2 if frame else 0
-    # tail (left) with a bow
-    d.line([(14, 30), (7, 24 + sway), (5, 18)], fill=0, width=3)
-    d.polygon([(5, 16), (0, 11), (1, 20)], fill=255, outline=0)
-    d.polygon([(5, 16), (10, 11), (9, 20)], fill=255, outline=0)
-    d.ellipse([3, 14, 7, 18], fill=0)
-    # dress / body
-    outline(d, [(17, 31), (31, 31), (35, 46), (13, 46)])
-    d.line([(17, 34), (10, 40)], fill=0, width=2)
-    d.line([(31, 34), (38, 40)], fill=0, width=2)
+    # tail + bow
+    d.line([(30, 62), (14, 54 + sway), (10, 40), (18, 30)], fill=0, width=3)
+    shape(d, [(18, 28), (6, 19), (8, 36)])
+    shape(d, [(18, 28), (30, 19), (28, 36)])
+    d.ellipse([14, 25, 22, 33], fill=0)
+    # dress
+    shape(d, [(34, 58), (50, 58), (58, 78), (26, 78)])
+    d.line([(35, 62), (28, 72)], fill=0)
+    d.line([(49, 62), (56, 72)], fill=0)
     # twin tails
-    d.line([(11, 17), (5, 30 + sway), (9, 43)], fill=0, width=3)
-    d.line([(37, 17), (43, 30 - sway), (39, 43)], fill=0, width=3)
-    dither(d, (7, 20, 12, 40), 2)
-    dither(d, (36, 20, 41, 40), 2)
+    d.line([(26, 32), (12, 50 + sway), (20, 76)], fill=0, width=3)
+    d.line([(54, 32), (68, 50 - sway), (60, 76)], fill=0, width=3)
     # head
-    d.ellipse([10, 7, 38, 35], fill=255, outline=0)
+    ellipse(d, [22, 14, 58, 54])
     # ears
-    outline(d, [(12, 13), (7, 1), (21, 8)])
-    outline(d, [(36, 13), (41, 1), (27, 8)])
-    dither(d, (12, 5, 18, 12), 2)
-    dither(d, (30, 5, 36, 12), 2)
-    # bangs
-    d.arc([8, 2, 40, 30], 190, 350, fill=0)
-    d.line([(12, 12), (16, 20)], fill=0)
-    d.line([(36, 12), (32, 20)], fill=0)
+    shape(d, [(29, 24), (14, 2), (44, 14)])
+    shape(d, [(51, 24), (66, 2), (36, 14)])
+    dither(d, (22, 8, 30, 18))
+    dither(d, (50, 8, 58, 18))
+    # fringe + side locks
+    d.arc([20, 6, 60, 40], 195, 345, fill=0)
+    d.line([(26, 22), (30, 34)], fill=0)
+    d.line([(54, 22), (50, 34)], fill=0)
+    d.line([(40, 18), (40, 30)], fill=0)
     # eyes
-    d.ellipse([15, 19, 21, 25], fill=0)
-    d.ellipse([16, 20, 18, 22], fill=255)
+    d.ellipse([32, 32, 42, 46], fill=0)
+    d.ellipse([34, 34, 37, 38], fill=255)
     if frame:
-        d.line([(26, 22), (33, 22)], fill=0, width=2)
+        d.arc([48, 34, 58, 44], 200, 340, fill=0, width=2)
     else:
-        d.ellipse([27, 19, 33, 25], fill=0)
-        d.ellipse([29, 20, 31, 22], fill=255)
-    # blush + smile
-    dither(d, (11, 25, 16, 29), 2)
-    dither(d, (32, 25, 37, 29), 2)
-    d.arc([21, 24, 29, 31], 0, 180, fill=0)
+        d.ellipse([48, 32, 58, 46], fill=0)
+        d.ellipse([51, 34, 54, 38], fill=255)
+    # blush, mouth, whiskers
+    dither(d, (24, 44, 32, 50))
+    dither(d, (48, 44, 56, 50))
+    d.arc([36, 48, 42, 54], 0, 180, fill=0)
+    d.arc([42, 48, 48, 54], 0, 180, fill=0)
+    for y in (44, 49):
+        d.line([(30, y), (14, y - 3)], fill=0)
+        d.line([(50, y), (66, y - 3)], fill=0)
+    # collar bell
+    d.arc([30, 54, 50, 64], 0, 180, fill=0)
+    d.ellipse([38, 60, 44, 66], fill=0)
     return im
 
 def fox(frame):
     im = canvas(); d = ImageDraw.Draw(im)
     sway = 2 if frame else 0
     # fluffy tail (right)
-    d.line([(36, 30), (44, 25 + sway), (46, 17), (41, 11)], fill=0, width=3)
-    d.arc([36, 8, 47, 26], 270, 90, fill=0)
-    dither(d, (38, 12, 46, 28), 2)
-    # jacket / body
-    outline(d, [(16, 32), (32, 32), (36, 46), (12, 46)])
-    d.line([(20, 34), (24, 46)], fill=0)
-    d.line([(28, 34), (24, 46)], fill=0)
-    d.line([(16, 35), (9, 41)], fill=0, width=2)
-    d.line([(32, 35), (39, 41)], fill=0, width=2)
+    shape(d, [(56, 64), (74, 54 + sway), (78, 34), (66, 18), (56, 30)])
+    d.arc([58, 20, 79, 50], 250, 110, fill=0)
+    dither(d, (62, 28, 76, 52))
+    # jacket
+    shape(d, [(32, 58), (50, 58), (58, 78), (24, 78)])
+    d.line([(34, 62), (40, 78)], fill=0)
+    d.line([(48, 62), (42, 78)], fill=0)
+    d.line([(33, 62), (24, 72)], fill=0)
+    d.line([(49, 62), (58, 72)], fill=0)
     # long hair
-    d.line([(13, 18), (8, 32 + sway), (12, 44)], fill=0, width=3)
-    d.line([(35, 18), (40, 32 - sway), (36, 44)], fill=0, width=3)
-    dither(d, (10, 22, 14, 42), 2)
-    dither(d, (34, 22, 38, 42), 2)
+    d.line([(26, 34), (14, 54 + sway), (22, 78)], fill=0, width=3)
+    d.line([(54, 34), (66, 54 - sway), (58, 78)], fill=0, width=3)
     # head
-    d.ellipse([10, 8, 38, 36], fill=255, outline=0)
-    # big fox ears
-    outline(d, [(13, 14), (6, 0), (22, 8)])
-    outline(d, [(35, 14), (42, 0), (26, 8)])
-    dither(d, (11, 4, 18, 12), 2)
-    dither(d, (30, 4, 37, 12), 2)
-    # flower on the left ear (white petals, black outline)
-    for px_, py_ in [(8, 3), (12, 3), (10, 1), (10, 6), (10, 3)]:
-        d.ellipse([px_ - 1, py_ - 1, px_ + 1, py_ + 1], fill=255, outline=0)
-    d.ellipse([9, 2, 11, 4], fill=0)
-    # bangs
-    d.arc([8, 3, 40, 31], 190, 350, fill=0)
-    d.line([(13, 13), (17, 21)], fill=0)
-    d.line([(35, 13), (31, 21)], fill=0)
-    # eyes
-    d.ellipse([15, 20, 21, 26], fill=0)
-    d.ellipse([16, 21, 18, 23], fill=255)
+    ellipse(d, [22, 16, 58, 56])
+    # big ears
+    shape(d, [(30, 26), (10, 0), (44, 16)])
+    shape(d, [(50, 26), (70, 0), (36, 16)])
+    dither(d, (18, 8, 30, 20))
+    dither(d, (50, 8, 62, 20))
+    # flower on left ear
+    for px_, py_ in [(13, 11), (21, 11), (17, 5), (17, 17), (17, 11)]:
+        d.ellipse([px_ - 3, py_ - 3, px_ + 3, py_ + 3], fill=255, outline=0)
+        d.arc([px_ - 3, py_ - 3, px_ + 3, py_ + 3], 0, 360, fill=0)
+    d.ellipse([15, 9, 19, 13], fill=0)
+    # fringe + side locks
+    d.arc([20, 8, 60, 42], 195, 345, fill=0)
+    d.line([(27, 24), (31, 36)], fill=0)
+    d.line([(53, 24), (49, 36)], fill=0)
+    # muzzle + eyes
+    ellipse(d, [35, 44, 47, 56])
+    shape(d, [(38, 47), (44, 47), (41, 51)])
+    d.arc([36, 50, 46, 58], 0, 180, fill=0)
+    d.ellipse([31, 34, 41, 48], fill=0)
+    d.ellipse([33, 36, 36, 40], fill=255)
     if frame:
-        d.line([(27, 23), (33, 23)], fill=0, width=2)
+        d.arc([47, 36, 57, 46], 200, 340, fill=0, width=2)
     else:
-        d.ellipse([27, 20, 33, 26], fill=0)
-        d.ellipse([29, 21, 31, 23], fill=255)
-    # smile + blush
-    d.arc([21, 25, 29, 32], 0, 180, fill=0)
-    dither(d, (11, 26, 16, 30), 2)
-    dither(d, (32, 26, 37, 30), 2)
+        d.ellipse([47, 34, 57, 48], fill=0)
+        d.ellipse([50, 36, 53, 40], fill=255)
+    dither(d, (24, 46, 32, 52))
+    dither(d, (48, 46, 56, 52))
     return im
 
 def rows(im):
@@ -128,7 +142,7 @@ def c_array(name, data):
     return "\n".join(lines)
 
 def main():
-    header = ["#pragma once", "#define PET_W 48", "#define PET_H 48", ""]
+    header = ["#pragma once", f"#define PET_W {S}", f"#define PET_H {S}", ""]
     for name, fn in [("PET_CAT", cat), ("PET_FOX", fox)]:
         for f in (0, 1):
             header.append(c_array(f"{name}_{f}", rows(fn(f))))
@@ -136,7 +150,7 @@ def main():
     open('firmware/epaper42_web/pet_sprites.h', 'w').write("\n".join(header))
     for name, fn in [("cat", cat), ("fox", fox)]:
         for f in (0, 1):
-            fn(f).convert('1').resize((S * 6, S * 6), Image.NEAREST).save(f'/tmp/pet_{name}_{f}.png')
+            fn(f).convert('1').resize((S * 4, S * 4), Image.NEAREST).save(f'/tmp/pet_{name}_{f}.png')
     print("wrote firmware/epaper42_web/pet_sprites.h")
 
 if __name__ == '__main__':

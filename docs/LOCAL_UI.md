@@ -74,8 +74,8 @@ rendered in the browser (the browser only mirrors the device framebuffer).
 - Main screen: sprite, name/stage/age/coins, health + four stat bars, message
   line and a six-item action bar (喂食/玩耍/睡觉/清洁/抚摸/打工).
 - Time-based decay and offline ageing; state saved in NVS (`pet` namespace).
-- `ui::tick()` calls `petTick()`: 1 Hz decay, partial refresh every minute and a
-  full refresh every 10 minutes to clear ghosting.
+- `ui::tick()` calls `petTick()`: 1 Hz decay and a full refresh every 2 minutes
+  (never partial, which ghosted on this panel).
 
 ### News
 
@@ -88,6 +88,8 @@ rendered in the browser (the browser only mirrors the device framebuffer).
 
 ### Games
 
+- Home: a 3×3 app grid (时钟/记事/图片/二维码/游戏/新闻/宠物/设置);
+  `←↑↓→` moves the selection, `OK` enters.
 - Game menu: 五子棋 · 人机 / 五子棋 · 双人 / 斗地主 · 人机 / 斗地主 · 三人 / 返回.
 - Gomoku: 15×15 board, heuristic AI, D-pad + OK; full standard refresh per move.
 - Dou Dizhu: simplified combinations (single/pair/triple/triple+single/bomb/

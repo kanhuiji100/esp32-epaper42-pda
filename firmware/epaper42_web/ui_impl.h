@@ -353,20 +353,27 @@ const char* MENU[] = {"时钟", "记事", "图片", "二维码", "游戏", "新�
 void drawHome() {
   fillRect(0, 0, W, H, PAPER);
   drawStatus(hostLabel.c_str());
-  drawText(20, 34, "主菜单", 2, INK);
-  drawText(300, 42, "PDA", 1, INK);
-  const int top = 60, ih = 25;
+  drawText(20, 30, "主菜单", 2, INK);
+  drawText(334, 38, "PDA", 1, INK);
+  const int cw = 112, ch = 56, gx = 18, gy = 8;
   for (int i = 0; i < 8; i++) {
-    int y = top + i * ih;
+    int row = i / 3, col = i % 3;
+    int x = 20 + col * (cw + gx);
+    int y = 72 + row * (ch + gy);
+    if (row == 2) {                       // center the two items of the last row
+      int sx = (W - (2 * cw + gx)) / 2;
+      x = sx + col * (cw + gx);
+    }
     bool sel = (i == menuSel);
-    if (sel) fillRect(12, y, 376, 24, INK);
+    if (sel) fillRect(x - 4, y - 4, cw + 8, ch + 8, INK);
     uint8_t ink = sel ? PAPER : INK;
-    iconFor(i, 27, y + 0, ink);
-    drawText(66, y + 4, MENU[i], 1, ink);
-    if (sel) drawText(368, y + 4, ">", 1, ink);
+    iconFor(i, x + (cw - 24) / 2, y + 4, ink);
+    String label = MENU[i];
+    int tw = textWidth(label, 1);
+    drawText(x + (cw - tw) / 2, y + 34, label, 1, ink);
   }
   hline(12, 270, 376, INK);
-  drawText(14, 276, "↑↓ 选择   OK 进入", 1, INK);
+  drawText(14, 276, "←↑↓→ 选择   OK 进入", 1, INK);
 }
 
 void drawClockApp() {
@@ -602,6 +609,12 @@ void petCommand(const String& line) {
   if (cmd == "adopt fox" || cmd == "adopt 1") { petReset(1); petPrintStatus(); return; }
   if (cmd == "reset") { petReset(petSpecies); petPrintStatus(); return; }
   if (cmd == "save") { petSave(); Serial.println("pet: saved"); return; }
+  if (cmd == "unadopt") {
+    petPrefs.begin("pet", false); petPrefs.clear(); petPrefs.end();
+    petAdopted = false; pvView = PV_ADOPT;
+    Serial.println("pet: unadopted (adopt again with: pet adopt cat|fox)");
+    return;
+  }
   if (cmd.startsWith("name ")) {
     String n = line.substring(5); n.trim();
     if (n.length() > 0 && n.length() <= 12) { petName = n; petSave(); Serial.printf("pet: name=%s\n", petName.c_str()); }
@@ -689,15 +702,35 @@ panel42::Timings key(const String& k) {
   if (s == "home") app = App::HOME;
   else if (s == "back") app = App::HOME;
   else if (s == "up") {
-    if (app == App::HOME) { menuSel = (menuSel + 7) % 8; homeMoved = true; }
+    if (app == App::HOME) {
+      if (menuSel >= 3) menuSel -= 3;
+      else menuSel = (menuSel < 2) ? menuSel + 6 : 7;
+      homeMoved = true;
+    }
     else if (app == App::NOTES && notePage > 0) { notePage--; pageChanged = true; }
   } else if (s == "down") {
-    if (app == App::HOME) { menuSel = (menuSel + 1) % 8; homeMoved = true; }
+    if (app == App::HOME) {
+      if (menuSel + 3 < 8) menuSel += 3;
+      else menuSel = menuSel % 3;
+      homeMoved = true;
+    }
     else if (app == App::NOTES && notePage + 1 < notePages()) { notePage++; pageChanged = true; }
   } else if (s == "left") {
-    if (app == App::NOTES && notePage > 0) { notePage--; pageChanged = true; }
+    if (app == App::HOME) {
+      int row = menuSel / 3;
+      if (menuSel % 3 > 0) menuSel--;
+      else menuSel = row * 3 + (row == 2 ? 1 : 2);
+      homeMoved = true;
+    }
+    else if (app == App::NOTES && notePage > 0) { notePage--; pageChanged = true; }
   } else if (s == "right") {
-    if (app == App::NOTES && notePage + 1 < notePages()) { notePage++; pageChanged = true; }
+    if (app == App::HOME) {
+      int row = menuSel / 3;
+      if (menuSel % 3 < 2 && menuSel + 1 < 8) menuSel++;
+      else menuSel = row * 3;
+      homeMoved = true;
+    }
+    else if (app == App::NOTES && notePage + 1 < notePages()) { notePage++; pageChanged = true; }
   } else if (s == "ok") {
     if (app == App::HOME) {
       switch (menuSel) {
