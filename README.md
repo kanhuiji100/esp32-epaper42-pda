@@ -303,8 +303,9 @@ curl -X POST http://<ip>/api/refresh
 - **No OTA by design.** The single 3.5 MB app partition leaves no second slot;
   firmware updates are done over the always-available USB serial console.
 - **GB2312 subset font.** Emoji and rare Chinese characters show a box.
-- **The pet ages offline** from the saved NTP time (capped at 7 days); it can die
-  if neglected. State lives in NVS and is not synced anywhere.
+- **The pet ages offline** from the saved NTP time; offline it is treated as
+  sleeping (gentle decay, no offline death). While the device is running, neglect
+  can kill it. State lives in NVS and is not synced anywhere.
 - **News needs internet**: RSS feeds and article pages are fetched over HTTPS
   with `setInsecure()` (no certificate validation); there is no offline cache.
 - **Dou Dizhu is simplified**: single straights only; no straight pairs or

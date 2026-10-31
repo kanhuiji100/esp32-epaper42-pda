@@ -1,5 +1,11 @@
 # Changelog
 
+## v0.8.1 — 2026-10-31
+
+- Pet offline time is now gentle: the pet sleeps while the device is off, ages
+  from the saved NTP timestamp, decays hunger/happiness/cleanliness slowly,
+  recovers energy and cannot die offline (capped at one day per absence).
+
 ## v0.8.0 — 2026-10-31
 
 - New **Electronic pet** app: adopt a cat or fox, six actions (feed/play/sleep/

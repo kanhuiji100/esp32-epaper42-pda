@@ -94,6 +94,21 @@ static void petDecay(float minutes, bool offline) {
   if (petAgeMin < 1000000) petAgeMin += (uint32_t)m;
 }
 
+static void petDecayOffline(float minutes) {
+  if (!petAlive || minutes <= 0) return;
+  float m = minutes > 1440 ? 1440 : minutes;   // cap at one day
+  petHunger -= 0.25f * m;
+  petHappy -= 0.15f * m;
+  petEnergy += 0.8f * m;
+  petClean -= 0.12f * m;
+  petHunger = petClamp(petHunger); petHappy = petClamp(petHappy);
+  petEnergy = petClamp(petEnergy); petClean = petClamp(petClean);
+  if (petHunger < 15) petHealth -= 0.2f * m;
+  petHealth = petClamp(petHealth);
+  if (petHealth < 10) petHealth = 10;          // no offline death
+  if (petAgeMin < 1000000) petAgeMin += (uint32_t)minutes;
+}
+
 static void petLoad() {
   if (petLoaded) return;
   petLoaded = true;
@@ -118,7 +133,7 @@ static void petLoad() {
   if (now > 1700000000 && petLastEpoch > 0 && (uint32_t)now > petLastEpoch) {
     uint32_t mins = ((uint32_t)now - petLastEpoch) / 60;
     if (mins > 10080) mins = 10080;
-    petDecay((float)mins, true);
+    petDecayOffline((float)mins);
   }
   pvView = petAlive ? PV_MAIN : PV_DEAD;
 }
