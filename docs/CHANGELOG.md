@@ -1,5 +1,10 @@
 # Changelog
 
+## v0.4.3 — 2026-10-31
+
+- Notes: body moved up to y=28 and 12 lines/page (was y=40, 10 lines).
+  Last line ends ~y=264, still above the y=270 hint bar.
+
 ## v0.4.2 — 2026-10-31
 
 - Notes: removed the second title row; page number now sits in the top status bar

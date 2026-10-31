@@ -151,7 +151,7 @@ curl -X POST --data-binary '第一行
 
 - Body limit: 4095 bytes (the page limits the textarea to 1200 characters).
 - Saved in NVS namespace `pda`, key `note`; survives reboot.
-- The device wraps at 360 px and paginates at 10 lines/page.
+- The device wraps at 360 px and paginates at 12 lines/page.
 
 ### QR
 

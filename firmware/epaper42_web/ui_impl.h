@@ -356,7 +356,7 @@ void drawClockApp() {
 
 constexpr int NOTE_MAXW = 360;
 constexpr int NOTE_LINEH = 20;
-constexpr int NOTE_LINES = 10;
+constexpr int NOTE_LINES = 12;
 
 int notePages() {
   if (note.length() == 0) return 1;
@@ -392,7 +392,7 @@ void drawNotesApp() {
     drawText(20, 72, "在网页输入文字，点“发送到记事”。", 1, INK);
   } else {
     int start = noteStart(notePage);
-    layoutText(20, 40, NOTE_MAXW, NOTE_LINEH, NOTE_LINES, note, 1, INK, true, start, nullptr);
+    layoutText(20, 28, NOTE_MAXW, NOTE_LINEH, NOTE_LINES, note, 1, INK, true, start, nullptr);
   }
   hline(12, 270, 376, INK);
   drawText(14, 276, "↑↓ 翻页   Back 返回", 1, INK);
