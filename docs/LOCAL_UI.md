@@ -70,7 +70,8 @@ rendered in the browser (the browser only mirrors the device framebuffer).
 
 ### Pet
 
-- Adopt screen: choose 猫娘 / 狐娘 with `←→`, confirm with `OK`.
+- Adopt screen: choose 猫娘 / 狐娘 with `←→` (the status bar shows the selected
+  species), confirm with `OK`; one large 192×192 sprite is shown.
 - Main screen: sprite, name/stage/age/coins, health + four stat bars, message
   line and a six-item action bar (喂食/玩耍/睡觉/清洁/抚摸/打工).
 - Time-based decay and offline ageing; state saved in NVS (`pet` namespace).

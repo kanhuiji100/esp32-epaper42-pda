@@ -17,7 +17,7 @@ static void prompt() { Serial.print("> "); }
 static void newline() { Serial.print("\r\n"); }
 
 static void printWifiStatus() {
-  Serial.printf("wifi: status=%d netReady=%d ssid=%s ip=%s rssi=%d mac=%s ps=%d ch=%d tx=%d\n",
+  Serial.printf("wifi: status=%d netReady=%d ssid=%s ip=%s rssi=%d mac=%s ps=%d ch=%d tx=%d\r\n",
                 (int)WiFi.status(), netReady ? 1 : 0,
                 WiFi.SSID().c_str(), WiFi.localIP().toString().c_str(),
                 WiFi.RSSI(), WiFi.macAddress().c_str(),
@@ -26,11 +26,11 @@ static void printWifiStatus() {
 
 static void printStatus() {
   Serial.println(ui::stateJson());
-  Serial.printf("ip=%s rssi=%d heap=%lu minheap=%lu uptime=%lus\n",
+  Serial.printf("ip=%s rssi=%d heap=%lu minheap=%lu uptime=%lus\r\n",
                 WiFi.localIP().toString().c_str(), WiFi.RSSI(),
                 (unsigned long)ESP.getFreeHeap(), (unsigned long)ESP.getMinFreeHeap(),
                 (unsigned long)(millis() / 1000));
-  Serial.printf("panel powered=%d mode=%s netReady=%d\n",
+  Serial.printf("panel powered=%d mode=%s netReady=%d\r\n",
                 panel42::isPowered() ? 1 : 0, panel42::modeName(), netReady ? 1 : 0);
 }
 
@@ -41,7 +41,7 @@ static void printScreen() {
   line[0] = '+';
   for (int i = 0; i < 50; i++) line[1 + i] = '-';
   line[51] = '+'; line[52] = 0;
-  Serial.printf("screen: app=%s\n", ui::appName());
+  Serial.printf("screen: app=%s\r\n", ui::appName());
   Serial.println(line);
   for (int by = 0; by < 30; by++) {
     Serial.print('|');
@@ -57,6 +57,33 @@ static void printScreen() {
   Serial.println(line);
 }
 
+// Base64-dump the 15000-byte framebuffer so a host can reconstruct a PNG
+// without the HTTP server (useful when the host is on another subnet).
+static void printFb() {
+  const uint8_t* fb = ui::screen();
+  static const char* T = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
+  Serial.print("FB BEGIN\r\n");
+  char line[80];
+  int col = 0;
+  for (size_t i = 0; i < 15000; i += 3) {
+    uint32_t v = (uint32_t)fb[i] << 16;
+    size_t rem = 15000 - i;
+    if (rem > 1) v |= (uint32_t)fb[i + 1] << 8;
+    if (rem > 2) v |= (uint32_t)fb[i + 2];
+    char q[4];
+    q[0] = T[(v >> 18) & 63];
+    q[1] = T[(v >> 12) & 63];
+    q[2] = (rem > 1) ? T[(v >> 6) & 63] : '=';
+    q[3] = (rem > 2) ? T[v & 63] : '=';
+    for (int k = 0; k < 4; k++) {
+      line[col++] = q[k];
+      if (col == 76) { line[col] = 0; Serial.print(line); Serial.print("\r\n"); col = 0; }
+    }
+  }
+  if (col) { line[col] = 0; Serial.print(line); Serial.print("\r\n"); }
+  Serial.print("FB END\r\n");
+}
+
 static void printTime() {
   time_t now = time(nullptr);
   if (now < 1700000000) {
@@ -67,13 +94,13 @@ static void printTime() {
   localtime_r(&now, &t);
   char b[48];
   strftime(b, sizeof(b), "%Y-%m-%d %H:%M:%S %Z", &t);
-  Serial.printf("time: %s\n", b);
+  Serial.printf("time: %s\r\n", b);
 }
 
 static bool connectAndRestore(const String& ssid, const String& pass) {
   String oldS, oldP;
   bool hadOld = wifiLoadCredentials(oldS, oldP);
-  Serial.printf("wifi: trying %s\n", ssid.c_str());
+  Serial.printf("wifi: trying %s\r\n", ssid.c_str());
   if (wifiStart(ssid, pass, true)) return true;
   if (hadOld && (oldS != ssid || oldP != pass)) {
     Serial.println("wifi: restoring previous credentials");
@@ -104,9 +131,9 @@ static void wifiScan() {
   if (n <= 0) {
     Serial.println("wifi: no networks found");
   } else {
-    Serial.printf("wifi: %d networks\n", n);
+    Serial.printf("wifi: %d networks\r\n", n);
     for (int i = 0; i < n; i++) {
-      Serial.printf("%2d  %-32s %4d dBm  %s\n", i + 1, WiFi.SSID(i).c_str(),
+      Serial.printf("%2d  %-32s %4d dBm  %s\r\n", i + 1, WiFi.SSID(i).c_str(),
                     WiFi.RSSI(i),
                     WiFi.encryptionType(i) == WIFI_AUTH_OPEN ? "open" : "encrypted");
     }
@@ -121,6 +148,8 @@ static void wifiScan() {
 static void printHelp() {
   Serial.println("commands:");
   Serial.println("  help | ?               this help");
+  Serial.println("  log [on|off]           toggle web UI request logging");
+  Serial.println("  fb                     base64-dump the 15 KB framebuffer");
   Serial.println("  status                 app/UI + network + panel state");
   Serial.println("  screen                 ASCII preview of the 400x300 framebuffer");
   Serial.println("  key up|down|left|right|ok|back|home");
@@ -223,9 +252,21 @@ static void handleLine(const String& raw) {
   if (cmd == "help" || cmd == "?") { printHelp(); return; }
   if (cmd == "status") { printStatus(); return; }
   if (cmd == "screen") { printScreen(); return; }
+  if (cmd == "fb") { printFb(); return; }
   if (cmd == "time") { printTime(); return; }
+  if (cmd == "log") {
+    String a = (argc >= 2) ? args[1] : "";
+    a.toLowerCase();
+    bool on;
+    if (a == "on") on = true;
+    else if (a == "off") on = false;
+    else on = !webLogEnabledState();
+    setWebLogEnabled(on);
+    Serial.printf("log view: %s\r\n", on ? "on" : "off");
+    return;
+  }
   if (cmd == "heap") {
-    Serial.printf("heap: free=%lu min=%lu\n", (unsigned long)ESP.getFreeHeap(),
+    Serial.printf("heap: free=%lu min=%lu\r\n", (unsigned long)ESP.getFreeHeap(),
                   (unsigned long)ESP.getMinFreeHeap());
     return;
   }
@@ -252,7 +293,7 @@ static void handleLine(const String& raw) {
     }
     panel42::Timings t = ui::key(k);
     lastActivity = millis();
-    Serial.printf("key=%s ms=%lu refresh=%lu\n", k.c_str(),
+    Serial.printf("key=%s ms=%lu refresh=%lu\r\n", k.c_str(),
                   (unsigned long)t.total, (unsigned long)t.refresh);
     printStatus();
     return;
@@ -263,7 +304,7 @@ static void handleLine(const String& raw) {
     String name = args[1]; name.toLowerCase();
     ui::setApp(name);
     lastActivity = millis();
-    Serial.printf("app=%s\n", ui::appName());
+    Serial.printf("app=%s\r\n", ui::appName());
     printStatus();
     return;
   }
@@ -284,7 +325,7 @@ static void handleLine(const String& raw) {
     if (rest.length() == 0) {
       Serial.println("note:");
       Serial.println(ui::noteText());
-      Serial.printf("bytes=%d\n", ui::noteText().length());
+      Serial.printf("bytes=%d\r\n", ui::noteText().length());
       return;
     }
     if (rest == "clear") {
@@ -327,7 +368,7 @@ static void handleLine(const String& raw) {
       if (sp2 >= 0) rest = rest.substring(sp2 + 1);
     }
     if (storage::writeFile(args[1], (const uint8_t*)rest.c_str(), rest.length())) {
-      Serial.printf("write: %s (%u bytes)\n", args[1].c_str(), (unsigned)rest.length());
+      Serial.printf("write: %s (%u bytes)\r\n", args[1].c_str(), (unsigned)rest.length());
     } else {
       Serial.println("write: failed");
     }
@@ -341,14 +382,14 @@ static void handleLine(const String& raw) {
 
   if (cmd == "host" || cmd == "hostname") {
     if (argc == 1) {
-      Serial.printf("host: %s  http://%s.local\n", gHostname.c_str(), gHostname.c_str());
+      Serial.printf("host: %s  http://%s.local\r\n", gHostname.c_str(), gHostname.c_str());
       return;
     }
     String name = args[1];
     if (name == "set" && argc >= 3) name = args[2];
     if (hostnameSet(name)) {
       lastActivity = millis();
-      Serial.printf("host: %s  http://%s.local\n", gHostname.c_str(), gHostname.c_str());
+      Serial.printf("host: %s  http://%s.local\r\n", gHostname.c_str(), gHostname.c_str());
       Serial.println("DHCP hostname fully applies after reboot; mDNS is immediate.");
     } else {
       Serial.println("host: invalid; use 1-32 chars a-z 0-9 -, no leading/trailing -");
@@ -457,7 +498,7 @@ static void handleLine(const String& raw) {
     panel42::Timings t;
     panel42::refreshHq(t);
     lastActivity = millis();
-    Serial.printf("refresh: total=%lu refresh=%lu\n",
+    Serial.printf("refresh: total=%lu refresh=%lu\r\n",
                   (unsigned long)t.total, (unsigned long)t.refresh);
     return;
   }
@@ -489,7 +530,7 @@ static void handleLine(const String& raw) {
     return;
   }
 
-  Serial.printf("unknown command: %s (type help)\n", cmd.c_str());
+  Serial.printf("unknown command: %s (type help)\r\n", cmd.c_str());
 }
 
 static void handleEnter() {
@@ -517,8 +558,8 @@ static void loop() {
       prompt();
       continue;
     }
-    if (c == '\r' || c == '\n') {
-      if (c == '\n' && lastCR) { lastCR = false; continue; }
+    if (c == '\r' || c == '\r\n') {
+      if (c == '\r\n' && lastCR) { lastCR = false; continue; }
       lastCR = (c == '\r');
       Serial.println();
       handleEnter();

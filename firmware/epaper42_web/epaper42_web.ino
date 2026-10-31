@@ -41,7 +41,7 @@ static String readLine(WiFiClient& c, uint32_t timeoutMs = 2000) {
   while (millis() - t0 < timeoutMs) {
     while (c.available()) {
       char ch = (char)c.read();
-      if (ch == '\n') {
+      if (ch == '\r\n') {
         if (s.endsWith("\r")) s.remove(s.length() - 1);
         return s;
       }
@@ -207,7 +207,11 @@ static void sendTiming(WiFiClient& c, const char* mode, const panel42::Timings& 
 }
 
 // ---------------- request dispatcher ----------------
-static void handleClient(WiFiClient& c) {
+static bool webLogEnabled = false;
+static void setWebLogEnabled(bool on) { webLogEnabled = on; }
+static bool webLogEnabledState() { return webLogEnabled; }
+
+void handleClient(WiFiClient& c) {
   c.setTimeout(2000);
   String req = readLine(c);
   if (req.length() == 0) { c.stop(); return; }
@@ -237,7 +241,7 @@ static void handleClient(WiFiClient& c) {
     else if (k == "transfer-encoding" && v.indexOf("chunked") >= 0) chunked = true;
   }
 
-  Serial.printf("REQ %s %s clen=%d\n", method.c_str(), target.c_str(), contentLength);
+  if (webLogEnabled) Serial.printf("REQ %s %s clen=%d\r\n", method.c_str(), target.c_str(), contentLength);
 
   if (method == "OPTIONS") { sendNoContent(c); return; }
 
@@ -503,7 +507,7 @@ static void handleClient(WiFiClient& c) {
     else                  panel42::fullFast(rxbuf, t);
     ui::setImage(rxbuf, true);
     lastActivity = millis();
-    Serial.printf("FULL %s total=%lu init=%lu data=%lu refresh=%lu\n", fm.c_str(),
+    Serial.printf("FULL %s total=%lu init=%lu data=%lu refresh=%lu\r\n", fm.c_str(),
                   (unsigned long)t.total, (unsigned long)t.init,
                   (unsigned long)t.data, (unsigned long)t.refresh);
     sendTiming(c, fm.c_str(), t);
@@ -538,7 +542,7 @@ static void handleClient(WiFiClient& c) {
     panel42::Timings t;
     panel42::partialWindow(x, y, w, h, rxbuf, t);
     lastActivity = millis();
-    Serial.printf("PART %dx%d@%d,%d total=%lu init=%lu data=%lu refresh=%lu\n",
+    Serial.printf("PART %dx%d@%d,%d total=%lu init=%lu data=%lu refresh=%lu\r\n",
                   w, h, x, y, (unsigned long)t.total, (unsigned long)t.init,
                   (unsigned long)t.data, (unsigned long)t.refresh);
     sendTiming(c, "partial", t);
@@ -550,7 +554,7 @@ static void handleClient(WiFiClient& c) {
     panel42::clear(t);
     ui::onClear();
     lastActivity = millis();
-    Serial.printf("CLEAR total=%lu refresh=%lu\n", (unsigned long)t.total, (unsigned long)t.refresh);
+    Serial.printf("CLEAR total=%lu refresh=%lu\r\n", (unsigned long)t.total, (unsigned long)t.refresh);
     sendTiming(c, "clear", t);
     return;
   }
@@ -559,7 +563,7 @@ static void handleClient(WiFiClient& c) {
     panel42::Timings t;
     panel42::refreshHq(t);
     lastActivity = millis();
-    Serial.printf("REFRESH total=%lu refresh=%lu\n", (unsigned long)t.total, (unsigned long)t.refresh);
+    Serial.printf("REFRESH total=%lu refresh=%lu\r\n", (unsigned long)t.total, (unsigned long)t.refresh);
     sendTiming(c, "refresh", t);
     return;
   }
@@ -604,7 +608,7 @@ static void startMdns() {
   MDNS.end();
   if (MDNS.begin(gHostname.c_str())) {
     MDNS.addService("http", "tcp", 80);
-    Serial.printf("mDNS: http://%s.local\n", gHostname.c_str());
+    Serial.printf("mDNS: http://%s.local\r\n", gHostname.c_str());
   } else {
     Serial.println("mDNS: begin failed");
   }
@@ -644,7 +648,7 @@ static bool wifiStart(const String& ssid, const String& pass, bool save) {
     Serial.println("WiFi: empty SSID");
     return false;
   }
-  Serial.printf("WiFi: connecting to %s\n", ssid.c_str());
+  Serial.printf("WiFi: connecting to %s\r\n", ssid.c_str());
   if (netReady) {
     server.end();
     MDNS.end();
@@ -691,16 +695,16 @@ static bool wifiConnectPreferred() {
 void setup() {
   Serial.begin(115200);
   delay(200);
-  Serial.println("\n=== E-Paper 4.2 fast web console ===");
+  Serial.println("\r\n=== E-Paper 4.2 fast web console ===");
   panel42::begin();
   panel42::Timings bt;
   panel42::bootClear(&bt);
-  Serial.printf("boot clear: total=%lu init=%lu data=%lu refresh=%lu\n",
+  Serial.printf("boot clear: total=%lu init=%lu data=%lu refresh=%lu\r\n",
                 (unsigned long)bt.total, (unsigned long)bt.init,
                 (unsigned long)bt.data, (unsigned long)bt.refresh);
   hostnameLoad();
   ui::setHostnameLabel(gHostname, false);
-  Serial.printf("hostname: %s (http://%s.local)\n", gHostname.c_str(), gHostname.c_str());
+  Serial.printf("hostname: %s (http://%s.local)\r\n", gHostname.c_str(), gHostname.c_str());
   WiFi.persistent(false);
   wifiConnectPreferred();
   lastActivity = millis();

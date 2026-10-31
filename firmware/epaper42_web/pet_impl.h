@@ -229,13 +229,10 @@ static void petPoopIcon(int x, int y) {
 }
 
 static void drawPetAdopt() {
-  drawStatus("电子宠物", "领养");
-  drawText(20, 22, "选择伙伴", 2, INK);
-  drawPetSprite(104, 54, 1, petSpecies, INK);
-  drawRect(100, 50, 200, 200, INK);
-  String nm = petSpecies ? "狐娘" : "猫娘";
-  int tw = textWidth(nm, 1);
-  drawText((W - tw) / 2, 252, nm, 1, INK);
+  drawStatus("电子宠物", petSpecies ? "狐娘" : "猫娘");
+  drawText(20, 30, "选择伙伴", 2, INK);
+  drawRect(100, 64, 200, 200, INK);
+  drawPetSprite(104, 68, 1, petSpecies, INK);
   hline(12, 270, 376, INK);
   drawText(14, 276, "←→ 切换   OK 领养   Back 返回", 1, INK);
 }
@@ -255,10 +252,10 @@ static void drawPetDead() {
 
 static void drawPetMain() {
   drawStatus("电子宠物", (petName + "·" + petStage()).c_str());
-  drawPetSprite(4, 24, 1, petSpecies, INK);
-  if (petSleeping) drawText(140, 28, "Zzz", 2, INK);
+  drawPetSprite(4, 30, 1, petSpecies, INK);
+  if (petSleeping) drawText(140, 40, "Zzz", 2, INK);
   if (!petAlive) { drawPetDead(); return; }
-  for (int i = 0; i < petPoop; i++) petPoopIcon(8 + i * 18, 218);
+  for (int i = 0; i < petPoop; i++) petPoopIcon(8 + i * 18, 222);
 
   const int x = 204;
   drawText(x, 30, petName, 2, INK);
@@ -329,10 +326,10 @@ static void petKey(const String& k) {
 static void petPrintStatus() {
   petLoad();
   if (!petAdopted) { Serial.println("pet: not adopted (use: pet adopt cat|fox)"); return; }
-  Serial.printf("pet: %s name=%s alive=%d sleep=%d stage=%s age=%umin coins=%d poop=%d\n",
+  Serial.printf("pet: %s name=%s alive=%d sleep=%d stage=%s age=%umin coins=%d poop=%d\r\n",
                 petSpecies ? "fox" : "cat", petName.c_str(), petAlive ? 1 : 0,
                 petSleeping ? 1 : 0, petStage(), (unsigned)petAgeMin, petCoins, petPoop);
-  Serial.printf("pet: hunger=%.0f happy=%.0f energy=%.0f clean=%.0f health=%.0f\n",
+  Serial.printf("pet: hunger=%.0f happy=%.0f energy=%.0f clean=%.0f health=%.0f\r\n",
                 petHunger, petHappy, petEnergy, petClean, petHealth);
 }
 

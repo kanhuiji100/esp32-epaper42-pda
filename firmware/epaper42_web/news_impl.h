@@ -101,7 +101,7 @@ static String newsStrip(String html) {
       tag.toLowerCase();
       if (tag.startsWith("br") || tag.startsWith("/p") || tag.startsWith("/div") ||
           tag.startsWith("/h") || tag.startsWith("/li") || tag.startsWith("p ")) {
-        out += '\n';
+        out += '\r\n';
       }
       i = e + 1;
       continue;
@@ -112,7 +112,7 @@ static String newsStrip(String html) {
   out = newsDecode(out);
   // collapse excessive blank lines / spaces
   out.replace("\r", "");
-  while (out.indexOf("\n\n\n") >= 0) out.replace("\n\n\n", "\n\n");
+  while (out.indexOf("\r\n\r\n\r\n") >= 0) out.replace("\r\n\r\n\r\n", "\r\n\r\n");
   return out;
 }
 
@@ -132,7 +132,7 @@ static String newsTag(const String& item, const char* tag) {
 
 static String newsHttpGet(const String& url, size_t maxLen) {
   if (WiFi.status() != WL_CONNECTED) { Serial.println("news: no WiFi"); return ""; }
-  if (ESP.getFreeHeap() < 90000) { Serial.printf("news: low heap %u\n", (unsigned)ESP.getFreeHeap()); return ""; }
+  if (ESP.getFreeHeap() < 90000) { Serial.printf("news: low heap %u\r\n", (unsigned)ESP.getFreeHeap()); return ""; }
   WiFiClientSecure client;
   client.setInsecure();
   HTTPClient http;
@@ -142,7 +142,7 @@ static String newsHttpGet(const String& url, size_t maxLen) {
   http.addHeader("User-Agent", "Mozilla/5.0 (ESP32 ePaperPDA)");
   int code = http.GET();
   if (code != HTTP_CODE_OK) {
-    Serial.printf("news: GET %s code=%d\n", url.c_str(), code);
+    Serial.printf("news: GET %s code=%d\r\n", url.c_str(), code);
     http.end();
     return "";
   }
@@ -161,7 +161,7 @@ static String newsHttpGet(const String& url, size_t maxLen) {
     remaining -= (size_t)n;
   }
   http.end();
-  Serial.printf("news: GET %s len=%u code=%d\n", url.c_str(), (unsigned)body.length(), code);
+  Serial.printf("news: GET %s len=%u code=%d\r\n", url.c_str(), (unsigned)body.length(), code);
   return body;
 }
 
@@ -190,7 +190,7 @@ static bool newsFetchList(int cat) {
     }
     pos = e + 7;
   }
-  Serial.printf("news: parsed %d items from %s\n", nvN, NEWS_CATS[cat].name);
+  Serial.printf("news: parsed %d items from %s\r\n", nvN, NEWS_CATS[cat].name);
   return nvN > 0;
 }
 
@@ -215,7 +215,7 @@ static String newsExtractArticle(const String& html, uint8_t type) {
     if (e < 0) break;
     String para = newsStrip(cut.substring(s, e));
     para.trim();
-    if (para.length() > 0) { out += para; out += "\n\n"; }
+    if (para.length() > 0) { out += para; out += "\r\n\r\n"; }
     p = e + 4;
   }
   if (out.length() < 60) out = newsStrip(cut);
@@ -265,7 +265,7 @@ static void newsLoadArticle(int idx) {
   }
   if (text.length() < 60) text = nvSummary[idx];
   if (text.length() < 20) text = "（无法获取正文，请返回重试）";
-  nvText = nvTitle[idx] + "\n\n" + text;
+  nvText = nvTitle[idx] + "\r\n\r\n" + text;
   nvPages = newsCountPages(nvText);
   nvPage = 0;
   nvView = NV_ARTICLE;

@@ -1,5 +1,15 @@
 # Changelog
 
+## v0.11.0 — 2026-10-31
+
+- Pet UI fixes: the adoption title no longer overlaps the status bar or the
+  sprite frame; the main-screen sprite starts below the status bar.
+- Serial console: web UI request logs are **off by default**; type `log` (or
+  `log on` / `log off`) to toggle them. All `Serial.printf` output now uses
+  `\r\n`, so minicom lines no longer stagger.
+- New `fb` console command: base64-dumps the 15 KB framebuffer so a host on
+  another subnet can reconstruct the screen as a PNG.
+
 ## v0.10.1 — 2026-10-31
 
 - Removed the pet breathing animation: the alternating shifted frames left a

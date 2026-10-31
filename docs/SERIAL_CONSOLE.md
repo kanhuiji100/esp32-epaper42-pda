@@ -74,6 +74,8 @@ then falls back to `secrets.h`.
 | `key up\|down\|left\|right\|ok\|back\|home` | call the same `ui::key()` used by the web remote |
 | `app home\|clock\|notes\|image\|qr\|news\|pet\|games\|gomoku\|ddz\|settings` | switch app / start game / open news / pet |
 | `pet [status\|feed\|play\|sleep\|clean\|touch\|work\|adopt cat\|fox\|name <n>\|reset\|save\|unadopt]` | electronic pet status/actions |
+| `log [on\|off]` | web UI request logging (off by default; `log` toggles) |
+| `fb` | base64-dump the 15 KB framebuffer for host-side PNG rendering |
 | `note` | print current note |
 | `note <text>` | set note (UTF-8, one line) and save to NVS |
 | `note clear` | clear note |

@@ -153,7 +153,7 @@ int textWidth(const String& s, int scale) {
   while (i < (int)s.length()) {
     uint32_t cp;
     i = utf8Next(s, i, cp);
-    if (cp == '\n') { if (w > maxW) maxW = w; w = 0; }
+    if (cp == '\r\n') { if (w > maxW) maxW = w; w = 0; }
     else if (cp == '\t') w += 4 * 8 * scale;
     else w += glyphWidth(cp) * scale;
   }
@@ -165,7 +165,7 @@ int drawText(int x, int y, const String& s, int scale, uint8_t c) {
   while (i < (int)s.length()) {
     uint32_t cp;
     i = utf8Next(s, i, cp);
-    if (cp == '\n') { if (cx - x > maxW) maxW = cx - x; cx = x; cy += 18 * scale; continue; }
+    if (cp == '\r\n') { if (cx - x > maxW) maxW = cx - x; cx = x; cy += 18 * scale; continue; }
     if (cp == '\t') { cx += 4 * 8 * scale; continue; }
     drawGlyph(cx, cy, cp, scale, c);
     cx += glyphWidth(cp) * scale;
@@ -183,7 +183,7 @@ int layoutText(int x, int y, int maxW, int lineH, int maxLines,
     int save = i;
     uint32_t cp;
     i = utf8Next(s, i, cp);
-    if (cp == '\n') {
+    if (cp == '\r\n') {
       cx = x; cy += lineH; lines++;
       if (lines > maxLines) {
         // Consume the newline that ends the last line of this page.  Pointing at
@@ -617,7 +617,7 @@ void petCommand(const String& line) {
   }
   if (cmd.startsWith("name ")) {
     String n = line.substring(5); n.trim();
-    if (n.length() > 0 && n.length() <= 12) { petName = n; petSave(); Serial.printf("pet: name=%s\n", petName.c_str()); }
+    if (n.length() > 0 && n.length() <= 12) { petName = n; petSave(); Serial.printf("pet: name=%s\r\n", petName.c_str()); }
     else Serial.println("pet: name must be 1-12 bytes");
     return;
   }
@@ -668,8 +668,8 @@ String stateJson() {
 void begin() {
   prefs.begin("pda", false);
   note = prefs.getString("note", "");
-  note.replace("\r\n", "\n");
-  note.replace("\r", "\n");
+  note.replace("\r\n", "\r\n");
+  note.replace("\r", "\r\n");
   app = App::HOME;
   menuSel = 0;
   notePage = 0;
@@ -763,8 +763,8 @@ panel42::Timings setApp(const String& name) {
 
 panel42::Timings setNote(const String& text) {
   String t = text;
-  t.replace("\r\n", "\n");
-  t.replace("\r", "\n");
+  t.replace("\r\n", "\r\n");
+  t.replace("\r", "\r\n");
   if (t.length() > 4000) t = t.substring(0, 4000);
   note = t;
   prefs.putString("note", note);

@@ -57,7 +57,7 @@ bool mountExt() {
   char idbuf[8];
   snprintf(idbuf, sizeof(idbuf), "%02X%02X%02X", id[0], id[1], id[2]);
   s_extId = idbuf;
-  Serial.printf("storage: external flash id=%s\n", idbuf);
+  Serial.printf("storage: external flash id=%s\r\n", idbuf);
 
   spi_bus_config_t bus = {};
   bus.mosi_io_num = 23;
@@ -104,7 +104,7 @@ bool mountExt() {
     Serial.println("storage: LittleFS mount on /ext failed");
     return false;
   }
-  Serial.printf("storage: /ext mounted, %u bytes\n", (unsigned)s_extSize);
+  Serial.printf("storage: /ext mounted, %u bytes\r\n", (unsigned)s_extSize);
   return true;
 }
 }  // namespace
@@ -117,7 +117,7 @@ void begin() {
     s_int = LittleFS.begin(false, "/int", 10, "spiffs");
   }
   if (s_int) {
-    Serial.printf("storage: /int mounted, %u/%u bytes used\n",
+    Serial.printf("storage: /int mounted, %u/%u bytes used\r\n",
                   (unsigned)LittleFS.usedBytes(), (unsigned)LittleFS.totalBytes());
   } else {
     Serial.println("storage: /int unavailable");
