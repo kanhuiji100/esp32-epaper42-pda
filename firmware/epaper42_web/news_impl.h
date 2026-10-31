@@ -19,7 +19,7 @@ static const int NEWS_LINES = 11;
 
 enum NewsView { NV_CATS, NV_LOADING, NV_LIST, NV_ARTICLE, NV_ERROR };
 static NewsView nvView = NV_CATS;
-static int nvCatSel = 0, nvListSel = 0, nvPage = 0, nvPages = 1, nvN = 0;
+static int nvCatSel = 0, nvListSel = 0, nvListTop = 0, nvPage = 0, nvPages = 1, nvN = 0;
 static String nvCatName = "要闻";
 static String nvMsg;
 static String nvText;
@@ -36,7 +36,7 @@ static void newsAlloc() {
 
 static void newsReset() {
   nvView = NV_CATS;
-  nvCatSel = nvListSel = 0;
+  nvCatSel = nvListSel = nvListTop = 0;
   nvPage = 0; nvPages = 1; nvN = 0;
   nvMsg = "";
 }
@@ -250,6 +250,7 @@ static void newsLoadList(int cat) {
   renderAndCommit(true);
   if (!newsFetchList(cat)) { nvMsg = "获取失败，请重试"; nvView = NV_ERROR; return; }
   nvListSel = 0;
+  nvListTop = 0;
   nvView = NV_LIST;
 }
 
@@ -273,15 +274,17 @@ static void newsLoadArticle(int idx) {
 static void drawNewsApp() {
   fillRect(0, 0, W, H, PAPER);
   if (nvView == NV_CATS) {
-    drawStatus("新闻", "分类");
-    const int top = 74, ih = 28;
+    drawStatus("新闻", (String(NEWS_CAT_N) + "类").c_str());
+    drawText(20, 28, "新闻分类", 2, INK);
+    drawText(20, 62, "中国新闻网 · IT之家", 1, INK);
+    const int top = 84, ih = 24;
     for (int i = 0; i < NEWS_CAT_N; i++) {
       int y = top + i * ih;
       bool sel = (i == nvCatSel);
-      if (sel) fillRect(12, y, 376, 24, INK);
+      if (sel) fillRect(12, y, 376, 22, INK);
       uint8_t ink = sel ? PAPER : INK;
-      drawText(30, y + 5, NEWS_CATS[i].name, 1, ink);
-      if (sel) drawText(366, y + 5, ">", 1, ink);
+      drawText(30, y + 3, NEWS_CATS[i].name, 1, ink);
+      if (sel) drawText(366, y + 3, ">", 1, ink);
     }
     hline(12, 270, 376, INK);
     drawText(14, 276, "↑↓ 选择   OK 获取   Back 返回", 1, INK);
@@ -304,17 +307,20 @@ static void drawNewsApp() {
   }
   if (nvView == NV_LIST) {
     drawStatus("新闻", nvCatName.c_str());
-    const int top = 34, ih = 27;
-    for (int i = 0; i < nvN && i < 8; i++) {
-      int y = top + i * ih;
+    const int top = 34, ih = 38, rows = 6;
+    for (int row = 0; row < rows; row++) {
+      int i = nvListTop + row;
+      if (i >= nvN) break;
+      int y = top + row * ih;
       bool sel = (i == nvListSel);
-      if (sel) fillRect(8, y, 384, 24, INK);
+      if (sel) fillRect(8, y, 384, 36, INK);
       uint8_t ink = sel ? PAPER : INK;
-      drawText(14, y + 4, String(i + 1) + ".", 1, ink);
-      drawText(34, y + 4, newsTruncate(nvTitle[i], 42), 1, ink);
+      drawText(14, y + 3, String(i + 1) + ".", 1, ink);
+      layoutText(34, y + 2, 356, 18, 2, nvTitle[i], 1, ink, true, 0, nullptr);
     }
     hline(12, 270, 376, INK);
     drawText(14, 276, "↑↓ 选择   OK 阅读   Back 分类", 1, INK);
+    drawText(330, 276, String(nvListSel + 1) + "/" + String(nvN), 1, INK);
     return;
   }
   // article
@@ -346,9 +352,11 @@ static void newsKey(const String& k) {
     return;
   }
   if (nvView == NV_LIST) {
-    if (k == "up") nvListSel = (nvListSel + nvN - 1) % nvN;
-    else if (k == "down") nvListSel = (nvListSel + 1) % nvN;
-    else if (k == "ok") newsLoadArticle(nvListSel);
+    if (k == "up") {
+      if (nvListSel > 0) { nvListSel--; if (nvListSel < nvListTop) nvListTop = nvListSel; }
+    } else if (k == "down") {
+      if (nvListSel + 1 < nvN) { nvListSel++; if (nvListSel >= nvListTop + 6) nvListTop = nvListSel - 5; }
+    } else if (k == "ok") newsLoadArticle(nvListSel);
     else if (k == "back" || k == "home") nvView = NV_CATS;
     return;
   }

@@ -1,5 +1,13 @@
 # Changelog
 
+## v0.7.1 — 2026-10-31
+
+- News category screen: added a “新闻分类” heading and source subtitle instead of
+  a blank top area; status bar shows the category count.
+- News list: 6 headlines per page with two-line wrapped titles (full width), a
+  scroll offset and a `position/total` counter. Fixes the previous byte-based
+  truncation that cut Chinese titles far too early.
+
 ## v0.7.0 — 2026-10-31
 
 - New **News** app: Chinese RSS news by category (要闻/国内/国际/社会/体育/财经

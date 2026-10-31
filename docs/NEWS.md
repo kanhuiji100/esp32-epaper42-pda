@@ -13,6 +13,13 @@ category, then a headline, and reads the article as plain text on the e-paper.
 The feeds are public RSS; no API key is required. Each list shows the first
 6–10 items the feed returns, with the headline and (where available) a summary.
 
+![News categories](images/news_cats.png)
+
+The category screen shows the source subtitle and the number of categories in the
+status bar. Each list page shows 6 headlines with up to two lines per title, so
+long Chinese headlines use the full width; the list scrolls with `↑↓` and shows
+the position (e.g. `8/10`) at the bottom right.
+
 ![News list](images/news_list.png)
 
 ## Reading an article
