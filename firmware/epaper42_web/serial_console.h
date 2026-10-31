@@ -17,10 +17,11 @@ static void prompt() { Serial.print("> "); }
 static void newline() { Serial.print("\r\n"); }
 
 static void printWifiStatus() {
-  Serial.printf("wifi: status=%d netReady=%d ssid=%s ip=%s rssi=%d mac=%s\n",
+  Serial.printf("wifi: status=%d netReady=%d ssid=%s ip=%s rssi=%d mac=%s ps=%d ch=%d tx=%d\n",
                 (int)WiFi.status(), netReady ? 1 : 0,
                 WiFi.SSID().c_str(), WiFi.localIP().toString().c_str(),
-                WiFi.RSSI(), WiFi.macAddress().c_str());
+                WiFi.RSSI(), WiFi.macAddress().c_str(),
+                (int)WiFi.getSleep(), (int)WiFi.channel(), (int)WiFi.getTxPower());
 }
 
 static void printStatus() {

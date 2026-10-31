@@ -59,7 +59,7 @@ console.
 
 | Command | Result |
 |---|---|
-| `wifi` / `wifi status` | status, SSID, IP, RSSI, MAC, `netReady` |
+| `wifi` / `wifi status` | status, SSID, IP, RSSI, MAC, `netReady`, power-save mode, channel, TX power |
 | `wifi scan` | scan visible 2.4 GHz networks; if the first scan returns 0 after a failed connection, the station is power-cycled and retried |
 | `wifi reconnect` | reconnect with NVS (or `secrets.h`) credentials |
 | `wifi forget` | remove NVS credentials; current connection stays until reboot |

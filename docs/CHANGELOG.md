@@ -1,5 +1,13 @@
 # Changelog
 
+## v0.5.2 — 2026-10-31
+
+- WiFi diagnostics: `wifi status` now prints power-save mode, channel and TX power.
+- `startNetworkServices()` forces `WiFi.setSleep(false)` after connect.
+- Boot uses an explicit `wifiConnectPreferred()` (NVS credentials, then
+  `secrets.h` fallback); the loop keeps a non-blocking `WiFi.reconnect()`.
+- No functional change to storage/UI.
+
 ## v0.5.0 — 2026-10-31
 
 - Repartitioned to a no-OTA layout: **3.5 MB app0** + **384 KB internal

@@ -629,6 +629,7 @@ static bool hostnameSet(const String& name) {
 }
 
 static void startNetworkServices() {
+  WiFi.setSleep(false);          // keep the radio awake; lower latency
   server.begin();
   server.setNoDelay(true);
   startMdns();
@@ -674,6 +675,17 @@ static bool wifiStart(const String& ssid, const String& pass, bool save) {
   return false;
 }
 
+static bool wifiConnectPreferred() {
+  String s, p;
+  bool fromNvs = wifiLoadCredentials(s, p);
+  if (wifiStart(s, p, false)) return true;
+  if (fromNvs && (s != String(DEFAULT_SSID) || p != String(DEFAULT_PASS))) {
+    Serial.println("WiFi: NVS credentials failed, trying secrets.h");
+    return wifiStart(String(DEFAULT_SSID), String(DEFAULT_PASS), false);
+  }
+  return false;
+}
+
 #include "serial_console.h"
 
 void setup() {
@@ -690,15 +702,7 @@ void setup() {
   ui::setHostnameLabel(gHostname, false);
   Serial.printf("hostname: %s (http://%s.local)\n", gHostname.c_str(), gHostname.c_str());
   WiFi.persistent(false);
-  String ssid, pass;
-  bool fromNvs = wifiLoadCredentials(ssid, pass);
-  if (!wifiStart(ssid, pass, false)) {
-    if (fromNvs &&
-        (ssid != String(DEFAULT_SSID) || pass != String(DEFAULT_PASS))) {
-      Serial.println("WiFi: NVS credentials failed, trying secrets.h");
-      wifiStart(String(DEFAULT_SSID), String(DEFAULT_PASS), false);
-    }
-  }
+  wifiConnectPreferred();
   lastActivity = millis();
   ui::begin();
   storage::begin();
