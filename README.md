@@ -2,8 +2,8 @@
 
 A local-first PDA built on an ESP32 and a Waveshare 4.2″ e-paper panel
 (WFT0420CZ15 / UC8176, 400×300). The device renders its own UI (menu, clock,
-notes, image viewer, QR codes, settings); a browser is only used as a remote control
-and image uploader.
+notes, image viewer, QR codes, games, settings); a browser is only used as a remote
+control and image uploader.
 
 The project also documents how the stock Waveshare loader was sped up from
 **~8.6 s to 0.6 s** for a full image, and why this old panel cannot do a clean
@@ -16,7 +16,7 @@ The project also documents how the stock Waveshare loader was sped up from
 ## Highlights
 
 - **Local UI on the ESP32** — 400×300 1bpp framebuffer, GB2312 + ASCII bitmap font.
-- **Six screens** — Home, Clock, Notes, Image, QR, Settings.
+- **Seven screens** — Home, Clock, Notes, Image, QR, Games, Settings.
 - **Web remote** — live 15 KB screen mirror, D-pad, app shortcuts, note editor,
   text/Wi-Fi QR generator.
 - **Fast refresh** — full image in **0.61 s** (device), **0.69–0.80 s** round trip.
@@ -28,6 +28,8 @@ The project also documents how the stock Waveshare loader was sped up from
   generate text/Wi-Fi QR codes, inspect status and print an ASCII screen preview.
 - **Max-contrast QR** — text or `WIFI:` join code, drawn with the 50 Hz 4.14 s
   waveform and a 4-module quiet zone.
+- **Games** — Gomoku (vs AI or 2-player) and a simplified Dou Dizhu (vs AI or
+  3-player), controlled by the same D-pad/OK/Back input.
 - **Custom hostname** — default `epaper42`; change it from the web card, serial
   console or API. The Home status bar and Settings show it, and mDNS serves
   `http://<hostname>.local` immediately.
@@ -53,7 +55,7 @@ The project also documents how the stock Waveshare loader was sped up from
 
 ## Screenshots
 
-| Local home (5 menu items) | Minute clock |
+| Local home | Minute clock |
 |---|---|
 | ![Local home](docs/images/ui_home.png) | ![Clock](docs/images/ui_clock.png) |
 
@@ -160,6 +162,8 @@ same can be done from serial with `host <name>`. The new name is served as
   stores the text in NVS.
 - **Image**: choose an image, pick a refresh mode, click “全屏刷新”; the device
   switches to the image viewer. Back/Home returns to the menu.
+- **Games**: click the **游戏** shortcut, then use the D-pad; or serial
+  `app games` / `app gomoku` / `app ddz`. See [docs/GAMES.md](docs/GAMES.md).
 - **Hostname**: the **设备主机名** card (or serial `host <name>`) updates the Home
   status bar, Settings and mDNS. Open `http://<name>.local`; 1–32 chars `a-z 0-9 -`.
 - **Serial console**: 115200 baud, `help` for commands. `wifi set` is interactive,
@@ -180,6 +184,7 @@ firmware/epaper42_web/
 ├── webpage.h          inline remote control + image uploader
 ├── serial_console.h   USB serial console: Wi-Fi provisioning, keys, notes, QR, preview
 ├── qrcodegen.h/.c     Nayuki QR Code generator (MIT)
+├── games_impl.h       Gomoku + simplified Dou Dizhu
 └── secrets.example.h  optional compile-time Wi-Fi template
 
 tools/
@@ -197,6 +202,7 @@ docs/
 ├── SERIAL_CONSOLE.md
 ├── QRCODE.md
 ├── STORAGE.md
+├── GAMES.md
 └── images/
 ```
 
@@ -281,6 +287,8 @@ curl -X POST http://<ip>/api/refresh
 - **No OTA by design.** The single 3.5 MB app partition leaves no second slot;
   firmware updates are done over the always-available USB serial console.
 - **GB2312 subset font.** Emoji and rare Chinese characters show a box.
+- **Dou Dizhu is simplified**: single straights only; no straight pairs or
+  triple + pair; the AI is a simple legal-move chooser.
 - **QR is limited to version 13 (69 modules).** ECC M, 4-module quiet zone; longer
   payloads return HTTP 400. The QR screen always uses the 4.14 s HQ waveform.
 - **Hostname:** 1–32 lowercase letters/digits/hyphens, no leading/trailing `-`.
@@ -305,8 +313,8 @@ exception); see the notice file for details.
 ## 中文说明
 
 这是一个 **ESP32 + 4.2 吋墨水屏（WFT0420CZ15 / UC8176，400×300）** 的本地优先
-PDA 项目。ESP32 自己维护画布并渲染主菜单、时钟、记事、图片、二维码、设置；
-网页只做遥控器、图片上传和二维码输入。
+PDA 项目。ESP32 自己维护画布并渲染主菜单、时钟、记事、图片、二维码、游戏、
+设置；网页只做遥控器、图片上传和二维码输入。
 
 - 整屏图片从原厂约 **8.6 s** 降到 **0.61 s**（设备端），浏览器往返 **0.7–0.8 s**。
 - 菜单/切页/记事翻页用标准全刷约 **1.0 s**；时钟**每分钟整分全刷一次**。
@@ -320,6 +328,7 @@ PDA 项目。ESP32 自己维护画布并渲染主菜单、时钟、记事、图�
 - 存储：内部 384KB LittleFS（`/int`）+ 外部 W25Q128 16MB（`/ext`，HSPI
   IO18/19/23/22），网页/串口可读写资源文件。
 - 分区改为无 OTA：app0 3.5MB，当前固件约 32%；固件升级走串口。
+- 小游戏：五子棋（人机/双人）和简化斗地主（人机/三人），用网页/串口方向键操作。
 - 记事存 NVS；图片和二维码只在 RAM；暂未接实体按键，由网页/串口操作。
 
 烧录后可不填 `secrets.h`，直接用串口 `wifi set` 配网；也可以复制

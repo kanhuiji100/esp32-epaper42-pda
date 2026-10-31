@@ -1,5 +1,15 @@
 # Changelog
 
+## v0.6.0 — 2026-10-31
+
+- New **Games** menu: Gomoku (vs AI or 2-player) and simplified Dou Dizhu
+  (vs AI or 3-player), controlled by the existing D-pad/OK/Back input.
+- Gomoku heuristic AI (attack/defence pattern scoring, immediate win/block).
+- Dou Dizhu: bidding, singles/pairs/triples/triple+single/bombs/rocket/single
+  straights, simple legal-move AI.
+- Web remote gets a 游戏 shortcut; serial `app games` / `app gomoku` / `app ddz`.
+- Docs: [GAMES.md](GAMES.md).
+
 ## v0.5.2 — 2026-10-31
 
 - WiFi diagnostics: `wifi status` now prints power-save mode, channel and TX power.

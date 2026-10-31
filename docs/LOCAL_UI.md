@@ -68,6 +68,14 @@ rendered in the browser (the browser only mirrors the device framebuffer).
 - Payload and password live in RAM only; `qr clear` or reboot removes them.
 - The placeholder (no code yet) uses the normal standard waveform.
 
+### Games
+
+- Game menu: 五子棋 · 人机 / 五子棋 · 双人 / 斗地主 · 人机 / 斗地主 · 三人 / 返回.
+- Gomoku: 15×15 board, heuristic AI, D-pad + OK; full standard refresh per move.
+- Dou Dizhu: simplified combinations (single/pair/triple/triple+single/bomb/
+  rocket/single straights), `←→` select card, `↑` toggle, `OK` play, `↓` pass.
+- Games never run partial/minute updates; `ui::tick()` skips them.
+
 ### Settings
 
 - Wi-Fi SSID, IP, RSSI, **hostname**, **internal storage**, free heap, current

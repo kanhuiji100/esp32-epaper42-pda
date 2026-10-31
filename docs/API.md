@@ -135,7 +135,7 @@ curl -X POST 'http://<ip>/api/key?k=back'
 curl -X POST 'http://<ip>/api/key?k=home'
 ```
 
-`left` / `right` also page the notes app. The response is the `/api/ui` JSON
+`left` / `right` also page the notes app. `app` accepts `games`, `gomoku` and `ddz` in addition to the base apps. The response is the `/api/ui` JSON
 (including the refresh time).
 
 ### Apps
