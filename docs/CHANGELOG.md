@@ -1,5 +1,13 @@
 # Changelog
 
+## v0.4.1 — 2026-10-31
+
+- "Refresh / 全屏清残影" now uses the **HQ 50 Hz waveform** (`refreshHq`,
+  ~4.15 s) instead of the standard 0.98 s waveform, for maximum ghost removal.
+- API `POST /api/refresh`, serial `refresh`, and the web "高清清残影 4.1s"
+  button all use the HQ path.
+- Docs updated.
+
 ## v0.4.0 — 2026-10-30
 
 - Custom device hostname, default `epaper42`; stored in NVS namespace `net`.

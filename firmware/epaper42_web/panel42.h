@@ -377,6 +377,11 @@ inline void refreshStd(Timings& t) {
   t.init = t1 - t0; t.data = t2 - t1; t.refresh = r; t.total = t3 - t0;
 }
 
+// Full-refresh the current shadow with the HQ (50 Hz) waveform.
+inline void refreshHq(Timings& t) {
+  fullHq(shadow, t);
+}
+
 // Clear to white with the full waveform.
 inline void clear(Timings& t) {
   uint32_t t0 = millis();

@@ -141,7 +141,7 @@ static void printHelp() {
   Serial.println("  wifi reconnect         reconnect with NVS/secrets credentials");
   Serial.println("  time                     current local time / NTP state");
   Serial.println("  ntp                      restart NTP sync");
-  Serial.println("  refresh                  full-refresh current frame (clean ghosting)");
+  Serial.println("  refresh                  HQ 50Hz full refresh (4.1s, clean ghosting)");
   Serial.println("  power off|on             panel power");
   Serial.println("  clear                    clear white + home");
   Serial.println("  heap                     free heap");
@@ -401,7 +401,7 @@ static void handleLine(const String& raw) {
 
   if (cmd == "refresh") {
     panel42::Timings t;
-    panel42::refreshStd(t);
+    panel42::refreshHq(t);
     lastActivity = millis();
     Serial.printf("refresh: total=%lu refresh=%lu\n",
                   (unsigned long)t.total, (unsigned long)t.refresh);

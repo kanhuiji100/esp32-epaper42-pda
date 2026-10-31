@@ -41,6 +41,7 @@ The project also documents how the stock Waveshare loader was sped up from
 | Full image (HQ 50 Hz) | ~4.1 s | **4.14 s** |
 | 400×40 partial window | — | **0.58 s** |
 | Menu / app switch / notes page | — | **0.98–1.0 s** (standard full waveform) |
+| Clean ghosting (`/api/refresh`) | — | **4.14 s** (HQ 50 Hz) |
 | Clock | — | **0.98 s once per minute**, static in between |
 | Boot to local home | — | **~2.2 s** |
 
@@ -251,7 +252,7 @@ curl -X POST --data-binary 'hello QR' 'http://<ip>/api/qr?type=text'
 curl -X POST 'http://<ip>/api/qr?type=wifi&ssid=MyRouter&pass=my%20pass'
 curl -X POST 'http://<ip>/api/qr?type=clear'
 
-# full-refresh current frame (clean ghosting)
+# clean ghosting: HQ 50 Hz full refresh of the current frame (~4.1 s)
 curl -X POST http://<ip>/api/refresh
 ```
 

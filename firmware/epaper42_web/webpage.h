@@ -152,9 +152,9 @@ button:disabled{opacity:.45;cursor:default}
         </select>
       </label>
       <button id="btnFull" class="primary">全屏刷新</button>
-      <button id="btnRefresh">全刷清残影</button>
+      <button id="btnRefresh">高清清残影 4.1s</button>
     </div>
-    <p class="hint">上传后自动进入本地“图片”页；“返回/主页”回菜单。快速：0.6s，标准：1.0s，高清：4.1s。</p>
+    <p class="hint">上传后自动进入本地“图片”页；“返回/主页”回菜单。快速：0.6s，标准：1.0s，高清：4.1s；“高清清残影”使用 50Hz 波形。</p>
   </section>
 
   <section class="card" style="grid-column:1/-1">

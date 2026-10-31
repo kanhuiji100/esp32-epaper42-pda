@@ -456,7 +456,7 @@ static void handleClient(WiFiClient& c) {
 
   if (path == "/api/refresh") {
     panel42::Timings t;
-    panel42::refreshStd(t);
+    panel42::refreshHq(t);
     lastActivity = millis();
     Serial.printf("REFRESH total=%lu refresh=%lu\n", (unsigned long)t.total, (unsigned long)t.refresh);
     sendTiming(c, "refresh", t);

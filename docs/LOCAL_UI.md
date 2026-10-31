@@ -97,7 +97,7 @@ python3 tools/gen_font.py
 - Hostname card: `GET/POST /api/host`; saves NVS, restarts mDNS and redraws Home.
 - Preview polls every 1.5 s; key/app actions refresh immediately.
 - Buttons are disabled while a refresh is in flight (the server is single
-  threaded and a refresh takes 0.58–0.98 s).
+  threaded and a refresh takes 0.58–4.1 s).
 
 ## Memory / storage
 

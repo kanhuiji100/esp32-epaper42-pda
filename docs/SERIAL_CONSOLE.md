@@ -152,7 +152,7 @@ stored in NVS namespace `net`, key `host`.
 
 | Command | Result |
 |---|---|
-| `refresh` | full standard refresh of the current frame (cleans ghosting) |
+| `refresh` | HQ 50 Hz full refresh of the current frame (4.1 s, cleans ghosting) |
 | `power off` / `power on` | panel power off / redraw current app (powers on) |
 | `clear` | clear white + return to home |
 | `time` | local time / NTP status |
@@ -166,7 +166,7 @@ stored in NVS namespace `net`, key `host`.
 - Line editor: 200-byte max, backspace, CR/LF tolerant, password echo masked.
 - Wi-Fi credentials are stored as plaintext NVS; this is normal for ESP32 but
   means physical/console access implies credential access.
-- Serial commands block the main loop while the panel refreshes (~0.6–1.0 s), so
+- Serial commands block the main loop while the panel refreshes (~0.6–4.1 s), so
   HTTP requests wait during a command.
 - HTTP request logs (`REQ ...`) can interleave with the prompt; the console still
   accepts input.

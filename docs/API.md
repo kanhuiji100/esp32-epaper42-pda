@@ -39,7 +39,7 @@ Partial images use `(w / 8) × h` bytes; `x` and `w` must be multiples of 8.
 | POST | `/api/qr?type=wifi&ssid=&pass=` | — | generate Wi-Fi QR (URL-encoded) |
 | POST | `/api/qr?type=clear` | — | clear QR / show placeholder |
 | POST | `/api/full?mode=...` | 15,000 B frame | upload full image |
-| POST | `/api/refresh` | — | full-refresh current frame (clean ghosting) |
+| POST | `/api/refresh` | — | HQ 50 Hz full refresh of current frame (clean ghosting, ~4.1 s) |
 | POST | `/api/clear` | — | clear white + return home |
 | POST | `/api/poweroff` | — | panel power off (image stays) |
 | POST | `/api/partial?x=&y=&w=&h=` | `(w/8)*h` B | **debug only**; desyncs local UI |
@@ -227,7 +227,7 @@ Response:
 ### Refresh / clear / power
 
 ```bash
-# full-refresh the current framebuffer with the standard waveform (clean ghosting)
+# clean ghosting: HQ 50 Hz full refresh of the current framebuffer (~4.1 s)
 curl -X POST 'http://<ip>/api/refresh'
 
 # clear white and go back to the home screen
