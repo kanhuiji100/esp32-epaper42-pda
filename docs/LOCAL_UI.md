@@ -70,8 +70,8 @@ rendered in the browser (the browser only mirrors the device framebuffer).
 
 ### Settings
 
-- Wi-Fi SSID, IP, RSSI, **hostname**, free heap, current panel mode, flash size,
-  uptime, web URL.
+- Wi-Fi SSID, IP, RSSI, **hostname**, **internal storage**, free heap, current
+  panel mode, flash size, uptime, web URL.
 - Status bar minute updates use a small partial window; a full refresh happens
   every 15 minutes.
 
@@ -109,7 +109,7 @@ python3 tools/gen_font.py
 - `fb` + `imageFb` + driver `shadow` + HTTP body buffer ≈ 60 KB.
 - QR encode buffers (`qrBuf`/`qrTemp`/`qrCand`) ≈ 12 KB static.
 - Font bitmaps ≈ 270 KB flash.
-- App size ≈ 1.13 MB of the 1.31 MB partition (86%).
+- App size ≈ 1.18 MB of the 3.5 MB partition (32%).
 - NVS note; no LittleFS image/QR persistence yet.
 
 ## Extending

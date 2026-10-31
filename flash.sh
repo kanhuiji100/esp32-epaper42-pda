@@ -26,7 +26,8 @@ if [ ! -f "$SECRETS" ]; then
 fi
 
 echo "== compile =="
-"$CLI" compile --fqbn esp32:esp32:esp32 "$SKETCH"
+"$CLI" compile --fqbn esp32:esp32:esp32 \
+  --build-property upload.maximum_size=3670016 "$SKETCH"
 echo "== upload to $PORT =="
 "$CLI" upload -p "$PORT" --fqbn esp32:esp32:esp32 "$SKETCH"
 echo "== done =="

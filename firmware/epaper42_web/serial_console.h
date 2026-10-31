@@ -132,6 +132,11 @@ static void printHelp() {
   Serial.println("  qr clear               clear QR / show placeholder");
   Serial.println("  host                   show hostname / mDNS URL");
   Serial.println("  host <name>            set hostname (a-z 0-9 -, 1-32 chars)");
+  Serial.println("  storage                internal/external storage info");
+  Serial.println("  ls [path]              list /int or /ext");
+  Serial.println("  cat <path>             print a text resource");
+  Serial.println("  write <path> <text>    write a small text resource");
+  Serial.println("  rm <path>              remove a file");
   Serial.println("  wifi                   current Wi-Fi state");
   Serial.println("  wifi scan              scan visible networks");
   Serial.println("  wifi set               interactive provisioning (password hidden)");
@@ -282,6 +287,45 @@ static void handleLine(const String& raw) {
     lastActivity = millis();
     Serial.println("note saved");
     printStatus();
+    return;
+  }
+
+  if (cmd == "storage" || cmd == "df") {
+    Serial.println(storage::infoJson());
+    return;
+  }
+  if (cmd == "ls") {
+    String p = argc > 1 ? args[1] : String("/int");
+    if (!storage::pathOk(p)) p = "/int";
+    Serial.println(storage::listJson(p));
+    return;
+  }
+  if (cmd == "cat") {
+    if (argc < 2) { Serial.println("usage: cat <path>"); return; }
+    String text;
+    if (!storage::readText(args[1], text, 4096)) { Serial.println("cat: read failed"); return; }
+    Serial.println(text);
+    return;
+  }
+  if (cmd == "write") {
+    if (argc < 3) { Serial.println("usage: write <path> <text>"); return; }
+    String rest = line;
+    int sp = rest.indexOf(' ');
+    if (sp >= 0) {
+      rest = rest.substring(sp + 1);
+      int sp2 = rest.indexOf(' ');
+      if (sp2 >= 0) rest = rest.substring(sp2 + 1);
+    }
+    if (storage::writeFile(args[1], (const uint8_t*)rest.c_str(), rest.length())) {
+      Serial.printf("write: %s (%u bytes)\n", args[1].c_str(), (unsigned)rest.length());
+    } else {
+      Serial.println("write: failed");
+    }
+    return;
+  }
+  if (cmd == "rm") {
+    if (argc < 2) { Serial.println("usage: rm <path>"); return; }
+    Serial.println(storage::removeFile(args[1]) ? "rm: ok" : "rm: failed");
     return;
   }
 

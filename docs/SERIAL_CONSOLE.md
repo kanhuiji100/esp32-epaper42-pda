@@ -128,6 +128,18 @@ zone. It stays static (no minute partial updates) until you generate another cod
 or leave the screen. QR content is RAM-only; `qr clear` or reboot drops it. See
 [QRCODE.md](QRCODE.md) for payload details and limits.
 
+## Storage
+
+| Command | Result |
+|---|---|
+| `storage` / `df` | internal/external storage JSON |
+| `ls [path]` | list `/int` or `/ext` |
+| `cat <path>` | print a text resource (≤ 4 KB) |
+| `write <path> <text>` | write a small text resource |
+| `rm <path>` | remove a file |
+
+See [STORAGE.md](STORAGE.md) for the partition layout and external wiring.
+
 ## Hostname
 
 | Command | Result |

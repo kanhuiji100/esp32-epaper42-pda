@@ -19,4 +19,5 @@ jobs:
           arduino-cli core update-index
           arduino-cli core install esp32:esp32@2.0.17
       - name: Compile firmware
-        run: arduino-cli compile --fqbn esp32:esp32:esp32 firmware/epaper42_web
+        run: arduino-cli compile --fqbn esp32:esp32:esp32 \
+          --build-property upload.maximum_size=3670016 firmware/epaper42_web

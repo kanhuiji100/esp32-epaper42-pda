@@ -10,6 +10,9 @@ Waveshare **e-Paper ESP32 Driver Board**.
 - 3.3 V logic and panel supply; boost converter for panel rails.
 - USB serial console at **115200 8N1** for Wi-Fi provisioning and input simulation
   (see [SERIAL_CONSOLE.md](SERIAL_CONSOLE.md)).
+- Optional **W25Q128** (16 MB) on HSPI: CS IO22, CLK IO18, DI IO23, DO IO19,
+  WP#/HOLD# 3V3; 3.3 V + 100 nF/10 µF, 10k CS pull-up. Mounted at `/ext`
+  (see [STORAGE.md](STORAGE.md)).
 
 ## Panel
 

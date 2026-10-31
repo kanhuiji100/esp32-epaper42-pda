@@ -11,6 +11,9 @@ Base URL: `http://<device-ip>/` (the serial log prints the DHCP IP; mDNS is
 For USB serial provisioning and console commands, see
 [SERIAL_CONSOLE.md](SERIAL_CONSOLE.md).
 
+Storage paths start with `/int` (384 KB internal LittleFS) or `/ext` (external
+W25Q128, 16 MB, when fitted). See [STORAGE.md](STORAGE.md).
+
 ## Image / screen format
 
 - Size: **15,000 bytes** = `400 / 8 × 300`.
@@ -27,6 +30,11 @@ Partial images use `(w / 8) × h` bytes; `x` and `w` must be multiples of 8.
 | GET | `/` | — | remote console HTML |
 | GET | `/api/status` | — | device status JSON (includes hostname) |
 | GET | `/api/host` | — | current hostname + mDNS URL |
+| GET | `/api/storage` | — | internal/external storage info |
+| GET | `/api/storage/list?path=/int` | — | directory listing |
+| GET | `/api/storage/file?path=...` | — | raw file bytes |
+| POST | `/api/storage/file?path=...` | binary ≤ 4 MB | write file |
+| DELETE | `/api/storage/file?path=...` | — | remove file |
 | POST | `/api/host?name=...` | — | set hostname; restarts mDNS, returns host/URL |
 | GET | `/api/screen` | — | current framebuffer, 15,000 bytes |
 | GET | `/api/ui` | — | local-UI state JSON |

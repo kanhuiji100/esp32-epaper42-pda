@@ -31,6 +31,8 @@ The project also documents how the stock Waveshare loader was sped up from
 - **Custom hostname** — default `epaper42`; change it from the web card, serial
   console or API. The Home status bar and Settings show it, and mDNS serves
   `http://<hostname>.local` immediately.
+- **Resource storage** — internal 384 KB LittleFS at `/int`, plus an external
+  W25Q128 (16 MB) on HSPI mounted at `/ext` for images/text/packages.
 
 ## Measured results
 
@@ -127,7 +129,8 @@ secrets file.
 # from repository root
 ./flash.sh /dev/ttyACM0
 # or:
-arduino-cli compile --fqbn esp32:esp32:esp32 firmware/epaper42_web
+arduino-cli compile --fqbn esp32:esp32:esp32 \
+  --build-property upload.maximum_size=3670016 firmware/epaper42_web
 arduino-cli upload -p /dev/ttyACM0 --fqbn esp32:esp32:esp32 firmware/epaper42_web
 ```
 
@@ -172,6 +175,8 @@ firmware/epaper42_web/
 ├── ui.h               public UI API
 ├── ui_impl.h          framebuffer, font, 6 screens, QR rendering, diff refresh
 ├── ui_font.h          generated 1bpp Unifont (7447 CJK + ASCII)
+├── partitions.csv     no-OTA layout: 3.5 MB app + 384 KB internal LittleFS
+├── storage.h + storage_impl.h  /int + external W25Q128 /ext API
 ├── webpage.h          inline remote control + image uploader
 ├── serial_console.h   USB serial console: Wi-Fi provisioning, keys, notes, QR, preview
 ├── qrcodegen.h/.c     Nayuki QR Code generator (MIT)
@@ -191,6 +196,7 @@ docs/
 ├── LOCAL_UI.md
 ├── SERIAL_CONSOLE.md
 ├── QRCODE.md
+├── STORAGE.md
 └── images/
 ```
 
@@ -243,6 +249,12 @@ curl -X POST --data-binary '今天要做的三件事…' \
 # full image: mode=fast|std|hq, 15000 bytes
 curl -X POST --data-binary @frame.bin 'http://<ip>/api/full?mode=fast'
 
+# storage: list / read / write / delete
+curl http://<ip>/api/storage
+curl 'http://<ip>/api/storage/list?path=/int'
+curl -X POST --data-binary @file.bin 'http://<ip>/api/storage/file?path=/int/file.bin'
+curl -X DELETE 'http://<ip>/api/storage/file?path=/int/file.bin'
+
 # hostname (shown on Home/Settings; mDNS restarts immediately)
 curl -X POST 'http://<ip>/api/host?name=pda42'
 curl http://<ip>/api/host
@@ -264,15 +276,17 @@ curl -X POST http://<ip>/api/refresh
   whole panel contrast after ~35 s of 1 Hz updates. The clock is minute-level.
   For seconds, use a 4.2″ V2 panel or accept 10 s-level updates / faster aging.
 - **Images and QR codes are RAM-only.** The last image/QR is lost on reboot; notes
-  persist in NVS.
+  persist in NVS. Large resources can be stored under `/int` or `/ext` and
+  streamed.
+- **No OTA by design.** The single 3.5 MB app partition leaves no second slot;
+  firmware updates are done over the always-available USB serial console.
 - **GB2312 subset font.** Emoji and rare Chinese characters show a box.
 - **QR is limited to version 13 (69 modules).** ECC M, 4-module quiet zone; longer
   payloads return HTTP 400. The QR screen always uses the 4.14 s HQ waveform.
 - **Hostname:** 1–32 lowercase letters/digits/hyphens, no leading/trailing `-`.
   mDNS changes immediately; the DHCP hostname is applied on the next boot. Some
   clients need Avahi/Bonjour to resolve `.local`.
-- **No OTA.** The app is at 86% of the 1.31 MB partition; an OTA layout needs a
-  smaller font or a custom partition table.
+- **No OTA.** The app partition is 3.5 MB and the current image uses ~32%.
 - **Panel is powered off after 120 s idle** (except the clock screen) to save
   power; the ESP32 stays awake for HTTP. Deep sleep/wake is future work.
 - **Vendor firmware/backup is not in this repo.** Always back up your own 4 MB
@@ -303,6 +317,9 @@ PDA 项目。ESP32 自己维护画布并渲染主菜单、时钟、记事、图�
   左上角/设置页同步显示，mDNS 立即变为 `http://<name>.local`；DHCP 主机名重启生效。
 - 二维码：网页或串口输入文字/SSID+密码，自动切到二维码页，用 50Hz 高清全刷
   （约 4.1s）保证最大对比度；二维码页保持静止，不做局部刷新。
+- 存储：内部 384KB LittleFS（`/int`）+ 外部 W25Q128 16MB（`/ext`，HSPI
+  IO18/19/23/22），网页/串口可读写资源文件。
+- 分区改为无 OTA：app0 3.5MB，当前固件约 32%；固件升级走串口。
 - 记事存 NVS；图片和二维码只在 RAM；暂未接实体按键，由网页/串口操作。
 
 烧录后可不填 `secrets.h`，直接用串口 `wifi set` 配网；也可以复制

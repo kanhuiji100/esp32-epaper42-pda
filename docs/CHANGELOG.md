@@ -1,5 +1,15 @@
 # Changelog
 
+## v0.5.0 — 2026-10-31
+
+- Repartitioned to a no-OTA layout: **3.5 MB app0** + **384 KB internal
+  LittleFS** + 64 KB coredump; current firmware uses ~32%.
+- Added `storage` module: internal `/int` LittleFS, external W25Q128 on HSPI
+  mounted at `/ext` (JEDEC probe + external partition + LittleFS).
+- Added `/api/storage` list/read/write/delete and serial
+  `storage`/`ls`/`cat`/`write`/`rm` commands.
+- Settings shows internal storage usage; docs: [STORAGE.md](STORAGE.md).
+
 ## v0.4.4 — 2026-10-31
 
 - Fixed notes pagination: when a page ended exactly at a newline, that newline was

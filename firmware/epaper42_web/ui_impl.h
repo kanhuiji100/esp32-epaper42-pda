@@ -413,6 +413,7 @@ void drawSettingsApp() {
   line(String("IP    ") + WiFi.localIP().toString());
   line(String("RSSI  ") + String(WiFi.RSSI()) + " dBm");
   line(String("HOST  ") + hostLabel);
+  line(String("FS    ") + storage::summary());
   line(String("HEAP  ") + String(ESP.getFreeHeap() / 1024) + " KB");
   line(String("MODE  ") + panel42::modeName());
   line(String("FLASH ") + String(ESP.getFlashChipSize() / 1024 / 1024) + " MB");

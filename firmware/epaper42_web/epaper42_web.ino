@@ -4,6 +4,7 @@
 #include <ESPmDNS.h>
 #include <Preferences.h>
 #include "panel42.h"
+#include "storage_impl.h"
 #include "ui_impl.h"
 #include "webpage.h"
 
@@ -99,6 +100,27 @@ static void sendBytes(WiFiClient& c, const uint8_t* data, size_t len) {
   c.stop();
 }
 
+static void sendFile(WiFiClient& c, const String& path) {
+  if (!storage::pathOk(path)) { sendJson(c, 400, "{\"ok\":0,\"err\":\"bad path\"}"); return; }
+  FILE* f = fopen(path.c_str(), "rb");
+  if (!f) { sendJson(c, 404, "{\"ok\":0,\"err\":\"not found\"}"); return; }
+  fseek(f, 0, SEEK_END);
+  long n = ftell(f);
+  if (n < 0) n = 0;
+  fseek(f, 0, SEEK_SET);
+  c.print("HTTP/1.1 200 OK\r\n");
+  c.print("Content-Type: application/octet-stream\r\n");
+  c.print("Cache-Control: no-store\r\n");
+  c.print("Access-Control-Allow-Origin: *\r\n");
+  c.print("Connection: close\r\n");
+  c.print("Content-Length: "); c.print(n); c.print("\r\n\r\n");
+  uint8_t buf[1024];
+  size_t r;
+  while ((r = fread(buf, 1, sizeof(buf), f)) > 0) c.write(buf, r);
+  fclose(f);
+  c.stop();
+}
+
 static void sendText(WiFiClient& c, const String& s) {
   c.print("HTTP/1.1 200 OK\r\n");
   c.print("Content-Type: text/plain; charset=utf-8\r\n");
@@ -113,7 +135,7 @@ static void sendText(WiFiClient& c, const String& s) {
 static void sendNoContent(WiFiClient& c) {
   c.print("HTTP/1.1 204 No Content\r\n");
   c.print("Access-Control-Allow-Origin: *\r\n");
-  c.print("Access-Control-Allow-Methods: GET,POST,OPTIONS\r\n");
+  c.print("Access-Control-Allow-Methods: GET,POST,DELETE,OPTIONS\r\n");
   c.print("Access-Control-Allow-Headers: Content-Type\r\n");
   c.print("Connection: close\r\n\r\n");
   c.stop();
@@ -256,6 +278,45 @@ static void handleClient(WiFiClient& c) {
       sendJson(c, 200, buf);
       return;
     }
+    if (path == "/api/storage") {
+      sendJson(c, 200, storage::infoJson());
+      return;
+    }
+    if (path == "/api/storage/list") {
+      String p = "/int";
+      getParamStr(query, "path", p);
+      p = urlDecode(p);
+      sendJson(c, 200, storage::listJson(p));
+      return;
+    }
+    if (path == "/api/storage/file") {
+      String p;
+      if (!getParamStr(query, "path", p)) {
+        sendJson(c, 400, "{\"ok\":0,\"err\":\"need path\"}");
+        return;
+      }
+      sendFile(c, urlDecode(p));
+      return;
+    }
+    sendJson(c, 404, "{\"ok\":0,\"err\":\"not found\"}");
+    return;
+  }
+
+  if (method == "DELETE") {
+    if (path == "/api/storage/file") {
+      String p;
+      if (!getParamStr(query, "path", p)) {
+        sendJson(c, 400, "{\"ok\":0,\"err\":\"need path\"}");
+        return;
+      }
+      p = urlDecode(p);
+      if (!storage::removeFile(p)) {
+        sendJson(c, 404, "{\"ok\":0,\"err\":\"remove failed\"}");
+        return;
+      }
+      sendJson(c, 200, "{\"ok\":1}");
+      return;
+    }
     sendJson(c, 404, "{\"ok\":0,\"err\":\"not found\"}");
     return;
   }
@@ -306,6 +367,46 @@ static void handleClient(WiFiClient& c) {
     ui::setNote(text);
     lastActivity = millis();
     sendJson(c, 200, ui::stateJson());
+    return;
+  }
+
+  if (path == "/api/storage/file") {
+    String p;
+    if (!getParamStr(query, "path", p)) {
+      sendJson(c, 400, "{\"ok\":0,\"err\":\"need path\"}");
+      return;
+    }
+    p = urlDecode(p);
+    if (!storage::pathOk(p)) {
+      sendJson(c, 400, "{\"ok\":0,\"err\":\"bad path\"}");
+      return;
+    }
+    if (contentLength <= 0 || contentLength > 4 * 1024 * 1024) {
+      sendJson(c, 400, "{\"ok\":0,\"err\":\"body 1..4MB\"}");
+      return;
+    }
+    if (expect100) { c.print("HTTP/1.1 100 Continue\r\n\r\n"); }
+    FILE* f = fopen(p.c_str(), "wb");
+    if (!f) {
+      sendJson(c, 400, "{\"ok\":0,\"err\":\"open failed\"}");
+      return;
+    }
+    size_t remaining = contentLength;
+    bool ok = true;
+    while (remaining > 0) {
+      size_t chunk = remaining > sizeof(rxbuf) ? sizeof(rxbuf) : remaining;
+      if (!readBody(c, rxbuf, chunk)) { ok = false; break; }
+      if (fwrite(rxbuf, 1, chunk, f) != chunk) { ok = false; break; }
+      remaining -= chunk;
+    }
+    fclose(f);
+    if (!ok) {
+      remove(p.c_str());
+      sendJson(c, 400, "{\"ok\":0,\"err\":\"write failed\"}");
+      return;
+    }
+    lastActivity = millis();
+    sendJson(c, 200, String("{\"ok\":1,\"size\":") + String((unsigned)contentLength) + "}");
     return;
   }
 
@@ -600,6 +701,7 @@ void setup() {
   }
   lastActivity = millis();
   ui::begin();
+  storage::begin();
   Serial.println("local UI ready");
   console::begin();
 }
