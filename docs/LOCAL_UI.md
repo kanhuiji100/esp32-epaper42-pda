@@ -68,6 +68,15 @@ rendered in the browser (the browser only mirrors the device framebuffer).
 - Payload and password live in RAM only; `qr clear` or reboot removes them.
 - The placeholder (no code yet) uses the normal standard waveform.
 
+### News
+
+- Category list: 要闻 / 国内 / 国际 / 社会 / 体育 / 财经 / 科技.
+- List screen: up to 8 headlines per page; `OK` opens the article.
+- Article screen: plain text, 11 lines/page, `←→` page, `Back` returns to the list.
+- Fetching is synchronous over HTTPS (`setInsecure`); the loading screen is shown
+  before the network request.
+- `ui::tick()` skips the news app (no minute partial updates).
+
 ### Games
 
 - Game menu: 五子棋 · 人机 / 五子棋 · 双人 / 斗地主 · 人机 / 斗地主 · 三人 / 返回.

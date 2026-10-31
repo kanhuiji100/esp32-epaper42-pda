@@ -2,8 +2,8 @@
 
 A local-first PDA built on an ESP32 and a Waveshare 4.2″ e-paper panel
 (WFT0420CZ15 / UC8176, 400×300). The device renders its own UI (menu, clock,
-notes, image viewer, QR codes, games, settings); a browser is only used as a remote
-control and image uploader.
+notes, image viewer, QR codes, games, news reader, settings); a browser is only used
+as a remote control and image uploader.
 
 The project also documents how the stock Waveshare loader was sped up from
 **~8.6 s to 0.6 s** for a full image, and why this old panel cannot do a clean
@@ -16,7 +16,7 @@ The project also documents how the stock Waveshare loader was sped up from
 ## Highlights
 
 - **Local UI on the ESP32** — 400×300 1bpp framebuffer, GB2312 + ASCII bitmap font.
-- **Seven screens** — Home, Clock, Notes, Image, QR, Games, Settings.
+- **Eight screens** — Home, Clock, Notes, Image, QR, Games, News, Settings.
 - **Web remote** — live 15 KB screen mirror, D-pad, app shortcuts, note editor,
   text/Wi-Fi QR generator.
 - **Fast refresh** — full image in **0.61 s** (device), **0.69–0.80 s** round trip.
@@ -30,6 +30,8 @@ The project also documents how the stock Waveshare loader was sped up from
   waveform and a 4-module quiet zone.
 - **Games** — Gomoku (vs AI or 2-player) and a simplified Dou Dizhu (vs AI or
   3-player), controlled by the same D-pad/OK/Back input.
+- **News reader** — fetches today's Chinese RSS news by category (要闻/国内/国际/
+  社会/体育/财经/科技), opens articles as plain text and paginates them.
 - **Custom hostname** — default `epaper42`; change it from the web card, serial
   console or API. The Home status bar and Settings show it, and mDNS serves
   `http://<hostname>.local` immediately.
@@ -164,6 +166,9 @@ same can be done from serial with `host <name>`. The new name is served as
   switches to the image viewer. Back/Home returns to the menu.
 - **Games**: click the **游戏** shortcut, then use the D-pad; or serial
   `app games` / `app gomoku` / `app ddz`. See [docs/GAMES.md](docs/GAMES.md).
+- **News**: click the **新闻** shortcut (or serial `app news`), choose a category
+  with `↑↓` + `OK`, pick a headline, read with `←→` paging. See
+  [docs/NEWS.md](docs/NEWS.md).
 - **Hostname**: the **设备主机名** card (or serial `host <name>`) updates the Home
   status bar, Settings and mDNS. Open `http://<name>.local`; 1–32 chars `a-z 0-9 -`.
 - **Serial console**: 115200 baud, `help` for commands. `wifi set` is interactive,
@@ -185,6 +190,7 @@ firmware/epaper42_web/
 ├── serial_console.h   USB serial console: Wi-Fi provisioning, keys, notes, QR, preview
 ├── qrcodegen.h/.c     Nayuki QR Code generator (MIT)
 ├── games_impl.h       Gomoku + simplified Dou Dizhu
+├── news_impl.h        Chinese RSS news reader (China News / ITHome)
 └── secrets.example.h  optional compile-time Wi-Fi template
 
 tools/
@@ -203,6 +209,7 @@ docs/
 ├── QRCODE.md
 ├── STORAGE.md
 ├── GAMES.md
+├── NEWS.md
 └── images/
 ```
 
@@ -287,6 +294,8 @@ curl -X POST http://<ip>/api/refresh
 - **No OTA by design.** The single 3.5 MB app partition leaves no second slot;
   firmware updates are done over the always-available USB serial console.
 - **GB2312 subset font.** Emoji and rare Chinese characters show a box.
+- **News needs internet**: RSS feeds and article pages are fetched over HTTPS
+  with `setInsecure()` (no certificate validation); there is no offline cache.
 - **Dou Dizhu is simplified**: single straights only; no straight pairs or
   triple + pair; the AI is a simple legal-move chooser.
 - **QR is limited to version 13 (69 modules).** ECC M, 4-module quiet zone; longer
@@ -314,7 +323,7 @@ exception); see the notice file for details.
 
 这是一个 **ESP32 + 4.2 吋墨水屏（WFT0420CZ15 / UC8176，400×300）** 的本地优先
 PDA 项目。ESP32 自己维护画布并渲染主菜单、时钟、记事、图片、二维码、游戏、
-设置；网页只做遥控器、图片上传和二维码输入。
+新闻、设置；网页只做遥控器、图片上传和二维码输入。
 
 - 整屏图片从原厂约 **8.6 s** 降到 **0.61 s**（设备端），浏览器往返 **0.7–0.8 s**。
 - 菜单/切页/记事翻页用标准全刷约 **1.0 s**；时钟**每分钟整分全刷一次**。
@@ -329,6 +338,8 @@ PDA 项目。ESP32 自己维护画布并渲染主菜单、时钟、记事、图�
   IO18/19/23/22），网页/串口可读写资源文件。
 - 分区改为无 OTA：app0 3.5MB，当前固件约 32%；固件升级走串口。
 - 小游戏：五子棋（人机/双人）和简化斗地主（人机/三人），用网页/串口方向键操作。
+- 新闻阅读：联网抓取中新网 RSS 的要闻/国内/国际/社会/体育/财经和 IT之家科技，
+  选分类、选标题、正文纯文本分页阅读；无离线缓存。
 - 记事存 NVS；图片和二维码只在 RAM；暂未接实体按键，由网页/串口操作。
 
 烧录后可不填 `secrets.h`，直接用串口 `wifi set` 配网；也可以复制

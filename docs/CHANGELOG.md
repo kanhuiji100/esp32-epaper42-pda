@@ -1,5 +1,14 @@
 # Changelog
 
+## v0.7.0 — 2026-10-31
+
+- New **News** app: Chinese RSS news by category (要闻/国内/国际/社会/体育/财经
+  from China News Service, 科技 from ITHome).
+- HTTPS fetch with limited streaming, RSS parsing and article HTML→text
+  conversion; long articles paginate at 11 lines/page.
+- Web remote gets a 新闻 shortcut; serial `app news`.
+- Docs: [NEWS.md](NEWS.md).
+
 ## v0.6.2 — 2026-10-31
 
 - Redrew Dou Dizhu suit icons procedurally: spade now has a clear pointed top,
