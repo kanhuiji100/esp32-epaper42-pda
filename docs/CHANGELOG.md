@@ -1,5 +1,14 @@
 # Changelog
 
+## v0.10.0 — 2026-10-31
+
+- Replaced the hand-drawn pet sprites with the user's gpt-image artwork
+  (`references/catbw.jpg`, `references/foxbw.jpg`): 192×192 1bpp
+  Floyd-Steinberg conversion shown 1:1, two frames for breathing.
+- Adoption screen now shows one large selected sprite; the main screen has the
+  larger sprite plus the stat column.
+- Docs and screenshots updated.
+
 ## v0.9.0 — 2026-10-31
 
 - Home is now a 3×3 app grid instead of a single crowded column; the last row is

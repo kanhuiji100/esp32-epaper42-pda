@@ -35,7 +35,8 @@ The project also documents how the stock Waveshare loader was sped up from
   社会/体育/财经/科技), opens articles as plain text and paginates them.
 - **Electronic pet** — adopt a cat or fox, keep hunger/happiness/energy/cleanliness
   and health, feed/play/sleep/clean/pet/work, with NVS persistence and offline
-  ageing. 80×80 chibi sprites; the pet screen always uses full refresh to avoid
+  ageing. 192×192 sprites converted from the user's black-and-white cat/fox
+  artwork and shown 1:1; the pet screen always uses full refresh to avoid
   e-paper ghosting.
 - **Custom hostname** — default `epaper42`; change it from the web card, serial
   console or API. The Home status bar and Settings show it, and mDNS serves
@@ -200,7 +201,7 @@ firmware/epaper42_web/
 ├── games_impl.h       Gomoku + simplified Dou Dizhu
 ├── news_impl.h        Chinese RSS news reader (China News / ITHome)
 ├── pet_impl.h         Electronic pet (state, decay, actions, UI)
-├── pet_sprites.h      Generated 48×48 cat/fox sprites
+├── pet_sprites.h      Generated 192×192 cat/fox sprites
 └── secrets.example.h  optional compile-time Wi-Fi template
 
 tools/

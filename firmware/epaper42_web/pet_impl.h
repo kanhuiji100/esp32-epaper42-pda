@@ -235,15 +235,14 @@ static void petPoopIcon(int x, int y) {
 
 static void drawPetAdopt() {
   drawStatus("电子宠物", "领养");
-  drawText(20, 26, "选择伙伴", 2, INK);
-  drawPetSprite(20, 66, 2, 0, petFrame, INK);
-  drawPetSprite(220, 66, 2, 1, petFrame, INK);
-  if (petSpecies == 0) drawRect(16, 62, 168, 168, INK);
-  else drawRect(216, 62, 168, 168, INK);
-  drawText(84, 234, "猫娘", 1, INK);
-  drawText(284, 234, "狐娘", 1, INK);
+  drawText(20, 22, "选择伙伴", 2, INK);
+  drawPetSprite(104, 54, 1, petSpecies, petFrame, INK);
+  drawRect(100, 50, 200, 200, INK);
+  String nm = petSpecies ? "狐娘" : "猫娘";
+  int tw = textWidth(nm, 1);
+  drawText((W - tw) / 2, 252, nm, 1, INK);
   hline(12, 270, 376, INK);
-  drawText(14, 276, "←→ 选择   OK 领养   Back 返回", 1, INK);
+  drawText(14, 276, "←→ 切换   OK 领养   Back 返回", 1, INK);
 }
 
 static void drawPetDead() {
@@ -261,22 +260,22 @@ static void drawPetDead() {
 
 static void drawPetMain() {
   drawStatus("电子宠物", (petName + "·" + petStage()).c_str());
-  drawPetSprite(8, 32, 2, petSpecies, petFrame, INK);
-  if (petSleeping) drawText(96, 36, "Zzz", 2, INK);
+  drawPetSprite(4, 24, 1, petSpecies, petFrame, INK);
+  if (petSleeping) drawText(140, 28, "Zzz", 2, INK);
   if (!petAlive) { drawPetDead(); return; }
-  for (int i = 0; i < petPoop; i++) petPoopIcon(16 + i * 18, 196);
+  for (int i = 0; i < petPoop; i++) petPoopIcon(8 + i * 18, 218);
 
-  const int x = 176;
-  drawText(x, 36, petName, 2, INK);
+  const int x = 204;
+  drawText(x, 30, petName, 2, INK);
   drawText(x, 64, String(petSpecies ? "狐娘" : "猫娘") + " · " + petStage(), 1, INK);
   drawText(x, 82, String("年龄 ") + petAgeStr(), 1, INK);
   drawText(x, 100, String("金币 ") + String(petCoins), 1, INK);
 
-  drawText(x, 120, "健康", 1, INK); petBar(224, 120, 160, 12, petHealth);
-  drawText(x, 140, "饱食", 1, INK); petBar(224, 140, 160, 10, petHunger);
-  drawText(x, 158, "心情", 1, INK); petBar(224, 158, 160, 10, petHappy);
-  drawText(x, 176, "精力", 1, INK); petBar(224, 176, 160, 10, petEnergy);
-  drawText(x, 194, "清洁", 1, INK); petBar(224, 194, 160, 10, petClean);
+  drawText(x, 120, "健康", 1, INK); petBar(252, 120, 132, 12, petHealth);
+  drawText(x, 140, "饱食", 1, INK); petBar(252, 140, 132, 10, petHunger);
+  drawText(x, 158, "心情", 1, INK); petBar(252, 158, 132, 10, petHappy);
+  drawText(x, 176, "精力", 1, INK); petBar(252, 176, 132, 10, petEnergy);
+  drawText(x, 194, "清洁", 1, INK); petBar(252, 194, 132, 10, petClean);
 
   String msg = petMsg;
   if (millis() > petMsgUntil) {
@@ -287,7 +286,7 @@ static void drawPetMain() {
     else if (petEnergy < 20) msg = "想睡觉了";
     else msg = "状态不错";
   }
-  drawText(x, 214, newsTruncate(msg, 27), 1, INK);
+  drawText(x, 214, newsTruncate(msg, 24), 1, INK);
 
   const int aw = 60, ah = 26, ay = 236;
   for (int i = 0; i < 6; i++) {
