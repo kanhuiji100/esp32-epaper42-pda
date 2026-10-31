@@ -1,5 +1,11 @@
 # Changelog
 
+## v0.10.1 — 2026-10-31
+
+- Removed the pet breathing animation: the alternating shifted frames left a
+  blurry double image on the panel. The sprite is now static.
+- Pet stat auto-refresh slowed from 2 to 5 minutes (still full refresh only).
+
 ## v0.10.0 — 2026-10-31
 
 - Replaced the hand-drawn pet sprites with the user's gpt-image artwork

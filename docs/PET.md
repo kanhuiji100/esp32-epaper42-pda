@@ -11,8 +11,9 @@ from the user's `references/catbw.jpg` / `references/foxbw.jpg` black-and-white
 chibi artwork: 192×192 1bpp with Floyd-Steinberg dithering, shown 1:1.
 The conversion is done by
 [`tools/gen_pet_sprites.py`](../tools/gen_pet_sprites.py) into
-`firmware/epaper42_web/pet_sprites.h`; the script emits a second frame shifted up
-2 px for the breathing animation.
+`firmware/epaper42_web/pet_sprites.h`. The sprite is static: the earlier
+two-frame breathing animation was removed because the alternating frames left a
+blurry double image on this panel.
 
 ![Adopt](images/pet_adopt.png)
 
@@ -71,6 +72,7 @@ Web remote: **宠物** shortcut + the D-pad. Serial:
 
 - The pet is saved to NVS (`pet` namespace) on every action and once a minute.
 - Death is permanent until you adopt again (`OK` on the death screen).
-- While the app is open the sprite breathes (two frames) and the stats update
-  every 2 minutes. These updates always use a **full refresh**; partial refresh
-  caused ghosting on the pet screen, so the pet never uses partial updates.
+- The sprite is static and the stats refresh every 5 minutes. These updates
+  always use a **full refresh**; partial refresh caused ghosting on the pet
+  screen, so the pet never uses partial updates. The breathing animation was
+  removed because the alternating frames made the dithered sprite look blurry.

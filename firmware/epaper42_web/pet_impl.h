@@ -17,7 +17,6 @@ static bool petAlive = true, petSleeping = false;
 static uint32_t petLastEpoch = 0;
 static uint32_t petPoopTimer = 0;
 static int petAction = 0;             // 0 feed .. 5 work
-static uint8_t petFrame = 0;
 static String petMsg;
 static uint32_t petMsgUntil = 0, petPetCd = 0;
 static uint32_t petAccum = 0, petLastMs = 0, petLastRefresh = 0, petLastFull = 0, petLastAnim = 0, petSaveAt = 0;
@@ -150,7 +149,6 @@ static void petReset(uint8_t species) {
   petSleeping = false;
   petPoopTimer = 0;
   petAction = 0;
-  petFrame = 0;
   petMsg = "";
   petAdopted = true;
   petLoaded = true;
@@ -213,12 +211,9 @@ static void petBlit(const uint8_t data[PET_H][PET_W / 8], int x, int y, int scal
   }
 }
 
-static void drawPetSprite(int x, int y, int scale, uint8_t species, uint8_t frame, uint8_t ink) {
-  if (species == 0) {
-    if (frame) petBlit(PET_CAT_1, x, y, scale, ink); else petBlit(PET_CAT_0, x, y, scale, ink);
-  } else {
-    if (frame) petBlit(PET_FOX_1, x, y, scale, ink); else petBlit(PET_FOX_0, x, y, scale, ink);
-  }
+static void drawPetSprite(int x, int y, int scale, uint8_t species, uint8_t ink) {
+  if (species == 0) petBlit(PET_CAT_0, x, y, scale, ink);
+  else petBlit(PET_FOX_0, x, y, scale, ink);
 }
 
 static void petBar(int x, int y, int w, int h, float v) {
@@ -236,7 +231,7 @@ static void petPoopIcon(int x, int y) {
 static void drawPetAdopt() {
   drawStatus("电子宠物", "领养");
   drawText(20, 22, "选择伙伴", 2, INK);
-  drawPetSprite(104, 54, 1, petSpecies, petFrame, INK);
+  drawPetSprite(104, 54, 1, petSpecies, INK);
   drawRect(100, 50, 200, 200, INK);
   String nm = petSpecies ? "狐娘" : "猫娘";
   int tw = textWidth(nm, 1);
@@ -260,7 +255,7 @@ static void drawPetDead() {
 
 static void drawPetMain() {
   drawStatus("电子宠物", (petName + "·" + petStage()).c_str());
-  drawPetSprite(4, 24, 1, petSpecies, petFrame, INK);
+  drawPetSprite(4, 24, 1, petSpecies, INK);
   if (petSleeping) drawText(140, 28, "Zzz", 2, INK);
   if (!petAlive) { drawPetDead(); return; }
   for (int i = 0; i < petPoop; i++) petPoopIcon(8 + i * 18, 218);
@@ -356,11 +351,10 @@ static void petTick() {
   if (petAdopted && app == App::PET && petAlive) {
     // Full refresh only: partial updates on this panel leave ghosting on the
     // sprite and the stat bars (see the ghosting report).  Update every 2 min.
-    if (now - petLastRefresh > 120000) {
+    if (now - petLastRefresh > 300000) {
       petLastRefresh = now;
-      petFrame ^= 1;
       petSave();
-      renderAndCommit(true);
+      renderAndCommit(true);   // refresh the stat bars; sprite stays static
     }
   }
 }

@@ -3,8 +3,9 @@
 
 The user supplies the two black-and-white chibi images (not committed); this
 script cleans the background, downsizes to 192x192 with Floyd-Steinberg
-dithering, and emits two frames per species (frame 1 is shifted up 3 px to give
-a subtle breathing animation) into firmware/epaper42_web/pet_sprites.h.
+dithering, and emits one static frame per species into
+firmware/epaper42_web/pet_sprites.h.  The breathing animation was removed: on
+this panel the alternating frames left a blurry double image.
 """
 import os
 from PIL import Image, ImageOps
@@ -24,11 +25,6 @@ def load(paths):
     im = im.crop((m, m, w - m, h - m))
     im = ImageOps.autocontrast(im, cutoff=0)
     return im.resize((S, S), Image.LANCZOS).convert('1')
-
-def shifted(im, dy):
-    out = Image.new('1', (S, S), 1)
-    out.paste(im, (0, -dy))
-    return out
 
 def rows(im):
     px = im.load(); data = []
@@ -52,8 +48,6 @@ def main():
     for name, src in SRC.items():
         base = load(src)
         header.append(c_array(f"{name}_0", rows(base)))
-        header.append("")
-        header.append(c_array(f"{name}_1", rows(shifted(base, 3))))
         header.append("")
         base.convert('L').resize((S, S), Image.NEAREST).save(f'/tmp/{name.lower()}_preview.png')
     open('firmware/epaper42_web/pet_sprites.h', 'w').write("\n".join(header))

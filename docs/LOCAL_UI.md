@@ -74,8 +74,9 @@ rendered in the browser (the browser only mirrors the device framebuffer).
 - Main screen: sprite, name/stage/age/coins, health + four stat bars, message
   line and a six-item action bar (喂食/玩耍/睡觉/清洁/抚摸/打工).
 - Time-based decay and offline ageing; state saved in NVS (`pet` namespace).
-- `ui::tick()` calls `petTick()`: 1 Hz decay and a full refresh every 2 minutes
-  (never partial, which ghosted on this panel).
+- `ui::tick()` calls `petTick()`: 1 Hz decay and a full refresh every 5 minutes
+  (never partial, which ghosted on this panel). The sprite is static (no
+  breathing animation).
 
 ### News
 
