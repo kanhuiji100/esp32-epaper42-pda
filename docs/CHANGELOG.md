@@ -1,5 +1,10 @@
 # Changelog
 
+## v0.6.1 — 2026-10-31
+
+- Dou Dizhu card faces now use 7×9 pixel suit icons (spade/heart/diamond/club)
+  instead of S/H/D/C letters; cards are 19×34 px. Jokers show 小/大 + star.
+
 ## v0.6.0 — 2026-10-31
 
 - New **Games** menu: Gomoku (vs AI or 2-player) and simplified Dou Dizhu

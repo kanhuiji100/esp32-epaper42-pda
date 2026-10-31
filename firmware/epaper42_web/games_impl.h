@@ -192,8 +192,8 @@ static String dRankStr(uint8_t r) {
   if (r == 13) return "K";
   if (r == 14) return "A";
   if (r == 15) return "2";
-  if (r == 16) return "w";
-  return "W";
+  if (r == 16) return "小";
+  return "大";
 }
 
 static uint8_t dSuit(uint8_t s) { return s < 4 ? s : 4; }
@@ -495,13 +495,31 @@ static bool dKey(const String& k) {
   return true;
 }
 
+// 7x9 suit icons: spade, heart, diamond, club, joker star.
+static const uint8_t SUIT_ICON[5][9] = {
+  {0b0001000,0b0011100,0b0111110,0b1111111,0b1111111,0b0111110,0b0011100,0b0011100,0b0001000}, // spade
+  {0b0110110,0b1111111,0b1111111,0b1111111,0b0111110,0b0011100,0b0001000,0b0000000,0b0000000}, // heart
+  {0b0001000,0b0011100,0b0111110,0b1111111,0b1111111,0b0111110,0b0011100,0b0001000,0b0000000}, // diamond
+  {0b0011100,0b0011100,0b1111111,0b1111111,0b0011100,0b0111110,0b0111110,0b0011100,0b0001000}, // club
+  {0b0001000,0b0001000,0b1111111,0b0111110,0b0111110,0b0101010,0b0000000,0b0000000,0b0000000}, // joker star
+};
+
+static void dDrawSuitIcon(int x, int y, uint8_t suit, uint8_t c) {
+  if (suit > 4) suit = 4;
+  for (int row = 0; row < 9; row++) {
+    uint8_t bits = SUIT_ICON[suit][row];
+    for (int col = 0; col < 7; col++) {
+      if (bits & (1 << (6 - col))) putPx(x + col, y + row, c);
+    }
+  }
+}
+
 static void dDrawCard(int x, int y, const DCard& c, bool selected) {
   int yy = selected ? y - 4 : y;
-  fillRect(x, yy, 18, 28, PAPER);
-  drawRect(x, yy, 18, 28, INK);
-  drawText(x + 2, yy + 2, dRankStr(c.r), 1, INK);
-  const char* suit = c.s == 0 ? "S" : (c.s == 1 ? "H" : (c.s == 2 ? "D" : (c.s == 3 ? "C" : "-")));
-  drawText(x + 2, yy + 15, suit, 1, INK);
+  fillRect(x, yy, 19, 34, PAPER);
+  drawRect(x, yy, 19, 34, INK);
+  drawText(x + 1, yy + 2, dRankStr(c.r), 1, INK);
+  dDrawSuitIcon(x + 2, yy + 22, dSuit(c.s), INK);
 }
 
 static void drawDdzApp() {
@@ -531,15 +549,15 @@ static void drawDdzApp() {
 
   // hand
   int n = dN[0];
-  int startX = (W - n * 18) / 2;
-  if (startX < 8) startX = 8;
+  int startX = (W - n * 19) / 2;
+  if (startX < 2) startX = 2;
   for (int i = 0; i < n; i++) {
-    int x = startX + i * 18;
-    dDrawCard(x, 220, dHand[0][i], dSel[i] != 0);
+    int x = startX + i * 19;
+    dDrawCard(x, 214, dHand[0][i], dSel[i] != 0);
   }
   if (dHuman[dTurn] && dPhase == 1) {
-    int x = startX + dCur * 18;
-    drawRect(x - 1, 215, 20, 30, INK);
+    int x = startX + dCur * 19;
+    drawRect(x - 1, 209, 21, 36, INK);
   }
   hline(12, 270, 376, INK);
   if (dPhase == 0) drawText(14, 276, "OK 叫地主   ↓ 不叫   Back 返回", 1, INK);
