@@ -16,6 +16,8 @@ The project also documents how the stock Waveshare loader was sped up from
 ## Highlights
 
 - **Local UI on the ESP32** — 400×300 1bpp framebuffer, GB2312 + ASCII bitmap font.
+- **Calendar** — month view with Chinese holidays, 调休 workdays, the 24 solar
+  terms and your own events (device, serial and web).
 - **Offline news cache** — lists and articles are cached on the flash and shown
   automatically when the network is unavailable.
 - **Image gallery** — pictures are stored on `/ext/images` (survive reboots,
@@ -238,6 +240,7 @@ docs/
 ├── PET.md
 ├── KEYPAD.md
 ├── IMAGES.md
+├── CALENDAR.md
 └── images/
 ```
 

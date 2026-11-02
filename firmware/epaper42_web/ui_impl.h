@@ -20,7 +20,7 @@ constexpr int IMGSZ = panel42::IMGSZ;
 constexpr uint8_t INK = 0;    // black pixel
 constexpr uint8_t PAPER = 1;  // white pixel
 
-enum class App { HOME, CLOCK, NOTES, IMAGE, SETTINGS, QR, NEWS, PET, GAMES, GOMOKU, DDZ };
+enum class App { HOME, CLOCK, CALENDAR, NOTES, IMAGE, SETTINGS, QR, NEWS, PET, GAMES, GOMOKU, DDZ };
 App app = App::HOME;
 int menuSel = 0;
 int notePage = 0;
@@ -387,6 +387,12 @@ void iconQr(int x, int y, uint8_t c) {
   fillRect(x + 15, y + 15, 2, 2, c);
   fillRect(x + 18, y + 12, 2, 2, c);
 }
+void iconCalendar(int x, int y, uint8_t c) {
+  drawRect(x + 3, y + 4, 18, 16, c);
+  fillRect(x + 3, y + 4, 18, 4, c);
+  for (int i = 0; i < 3; i++) fillRect(x + 6 + i * 5, y + 11, 2, 2, c);
+  for (int i = 0; i < 3; i++) fillRect(x + 6 + i * 5, y + 15, 2, 2, c);
+}
 void iconNews(int x, int y, uint8_t c) {
   drawRect(x + 2, y + 3, 20, 18, c);
   hline(x + 5, y + 7, 14, c);
@@ -409,12 +415,13 @@ void iconGame(int x, int y, uint8_t c) {
 void iconFor(int i, int x, int y, uint8_t c) {
   switch (i) {
     case 0: iconClock(x, y, c); break;
-    case 1: iconNote(x, y, c); break;
-    case 2: iconImage(x, y, c); break;
-    case 3: iconQr(x, y, c); break;
-    case 4: iconGame(x, y, c); break;
-    case 5: iconNews(x, y, c); break;
-    case 6: iconPet(x, y, c); break;
+    case 1: iconCalendar(x, y, c); break;
+    case 2: iconNote(x, y, c); break;
+    case 3: iconImage(x, y, c); break;
+    case 4: iconQr(x, y, c); break;
+    case 5: iconGame(x, y, c); break;
+    case 6: iconNews(x, y, c); break;
+    case 7: iconPet(x, y, c); break;
     default: iconGear(x, y, c); break;
   }
 }
@@ -452,7 +459,8 @@ void drawStatus(const char* title, const char* extra = nullptr) {
 }
 
 // ---------------- apps ----------------
-const char* MENU[] = {"时钟", "记事", "图片", "二维码", "游戏", "新闻", "宠物", "设置"};
+const char* MENU[] = {"时钟", "日历", "记事", "图片", "二维码", "游戏", "新闻", "宠物", "设置"};
+const int MENU_N = 9;
 
 void drawHome() {
   fillRect(0, 0, W, H, PAPER);
@@ -460,14 +468,12 @@ void drawHome() {
   drawText(20, 30, "主菜单", 2, INK);
   drawText(334, 38, "PDA", 1, INK);
   const int cw = 112, ch = 56, gx = 18, gy = 8;
-  for (int i = 0; i < 8; i++) {
+  for (int i = 0; i < MENU_N; i++) {
     int row = i / 3, col = i % 3;
-    int x = 20 + col * (cw + gx);
+    int inRow = MENU_N - row * 3; if (inRow > 3) inRow = 3;
+    int x = (inRow == 3) ? (20 + col * (cw + gx))
+                         : ((W - (inRow * cw + (inRow - 1) * gx)) / 2 + col * (cw + gx));
     int y = 72 + row * (ch + gy);
-    if (row == 2) {                       // center the two items of the last row
-      int sx = (W - (2 * cw + gx)) / 2;
-      x = sx + col * (cw + gx);
-    }
     bool sel = (i == menuSel);
     if (sel) fillRect(x - 4, y - 4, cw + 8, ch + 8, INK);
     uint8_t ink = sel ? PAPER : INK;
@@ -607,6 +613,7 @@ void drawImageApp() {
 void renderAndCommit(bool forceFull);   // defined below, used by news loading screens
 #include "news_impl.h"
 #include "pet_impl.h"
+#include "calendar_impl.h"
 
 String qrEscape(const String& s) {
   String o;
@@ -676,6 +683,7 @@ void render() {
   switch (app) {
     case App::HOME: drawHome(); break;
     case App::CLOCK: drawClockApp(); break;
+    case App::CALENDAR: drawCalendarApp(); break;
     case App::NOTES: drawNotesApp(); break;
     case App::IMAGE: drawImageApp(); break;
     case App::SETTINGS: drawSettingsApp(); break;
@@ -735,6 +743,7 @@ bool setAppByName(const String& n) {
   String s = n; s.toLowerCase();
   if (s == "home" || s == "menu") app = App::HOME;
   else if (s == "clock") app = App::CLOCK;
+  else if (s == "cal" || s == "calendar" || s == "rili") { calendarOpen(); app = App::CALENDAR; }
   else if (s == "notes" || s == "note") app = App::NOTES;
   else if (s == "image" || s == "picture") app = App::IMAGE;
   else if (s == "settings" || s == "setting") app = App::SETTINGS;
@@ -777,6 +786,140 @@ void petCommand(const String& line) {
     return;
   }
   Serial.println("usage: pet [status|feed|play|sleep|clean|touch|work|adopt cat|fox|name <n>|reset|save]");
+}
+
+// ---------------- calendar public API ----------------
+static String jsonEsc(const String& in) {
+  String o;
+  for (size_t i = 0; i < in.length(); i++) {
+    char ch = in[i];
+    if (ch == '"' || ch == '\\') o += '\\';
+    if (ch == '\n') { o += "\\n"; continue; }
+    o += ch;
+  }
+  return o;
+}
+
+String calendarMonthJson(int y, int m) {
+  calEnsure();
+  if (m < 1 || m > 12 || y < 1970 || y > 2100) return String("{\"ok\":0,\"err\":\"bad ym\"}");
+  String o;
+  o.reserve(64 + 31 * 48);
+  o += "{\"ok\":1,\"y\":"; o += y; o += ",\"m\":"; o += m;
+  o += ",\"dim\":"; o += calDim(y, m);
+  o += ",\"first\":"; o += calDow(y, m, 1);
+  o += ",\"days\":[";
+  for (int d = 1; d <= calDim(y, m); d++) {
+    uint8_t kind = 0;
+    const CalHol* h = calHolAt(y, m, d, &kind);
+    int t = calTermAt(y, m, d);
+    int e = calCountEvents(y, m, d);
+    if (!h && t < 0 && e == 0) continue;
+    if (o.charAt(o.length() - 1) != '[') o += ',';
+    o += "{\"d\":"; o += d;
+    if (h) { o += ",\"h\":\""; o += h->name; o += "\",\"k\":"; o += (int)kind; }
+    if (t >= 0) { o += ",\"t\":\""; o += CAL_TERM[t]; o += "\""; }
+    if (e > 0) { o += ",\"e\":"; o += e; }
+    o += "}";
+  }
+  o += "]}";
+  return o;
+}
+
+String calendarEventsJson() {
+  calEnsure();
+  String o = "{\"ok\":1,\"raw\":\"";
+  o += jsonEsc(calEvents);
+  o += "\",\"list\":[";
+  int p = 0, first = 1;
+  while (p < (int)calEvents.length()) {
+    int e = calEvents.indexOf('\n', p);
+    if (e < 0) e = calEvents.length();
+    String line = calEvents.substring(p, e);
+    int bar = line.indexOf('|');
+    if (bar > 0) {
+      if (!first) o += ',';
+      first = 0;
+      o += "{\"date\":\""; o += line.substring(0, bar);
+      o += "\",\"text\":\""; o += jsonEsc(line.substring(bar + 1)); o += "\"}";
+    }
+    p = e + 1;
+  }
+  o += "]}";
+  return o;
+}
+
+bool calendarAddEvent(const String& date, const String& text) {
+  calEnsure();
+  if (date.length() != 10) return false;
+  bool ok = calAddEvent(date, text);
+  if (ok && app == App::CALENDAR && calY == date.substring(0,4).toInt() &&
+      calM == date.substring(5,7).toInt()) renderAndCommit(true);
+  return ok;
+}
+
+bool calendarDelEvent(const String& date, int idx) {
+  calEnsure();
+  bool ok = calDelEvent(date, idx);
+  if (ok && app == App::CALENDAR) renderAndCommit(true);
+  return ok;
+}
+
+void calendarGoto(int y, int m, int d) {
+  calY = y; calM = m; calD = d; calClampDay(); calView = 0;
+}
+
+void calendarCommand(const String& line) {
+  calEnsure();
+  String c = line; c.trim();
+  String lc = c; lc.toLowerCase();
+  if (lc.length() == 0 || lc == "show") {
+    uint8_t kind = 0;
+    const CalHol* h = calHolAt(calY, calM, calD, &kind);
+    int t = calTermAt(calY, calM, calD);
+    Serial.printf("cal: %04d-%02d-%02d 周%s", calY, calM, calD, CAL_WEEK[calDow(calY, calM, calD)]);
+    if (h) Serial.printf("  %s(%s)", h->name, kind == 2 ? "班" : "休");
+    if (t >= 0) Serial.printf("  节气:%s", CAL_TERM[t]);
+    Serial.println();
+    String evs[16];
+    int n = calEventsOn(calY, calM, calD, evs, 16);
+    for (int i = 0; i < n; i++) Serial.printf("  %d. %s\r\n", i + 1, evs[i].c_str());
+    return;
+  }
+  if (lc == "today") { calToday(); if (app == App::CALENDAR) renderAndCommit(true); Serial.printf("cal: %04d-%02d-%02d\r\n", calY, calM, calD); return; }
+  if (lc.startsWith("goto ")) {
+    String d = c.substring(5); d.trim();
+    if (d.length() >= 10) {
+      int y = d.substring(0, 4).toInt(), m = d.substring(5, 7).toInt(), dd = d.substring(8, 10).toInt();
+      calendarGoto(y, m, dd);
+      if (app == App::CALENDAR) renderAndCommit(true);
+      Serial.printf("cal: %04d-%02d-%02d\r\n", calY, calM, calD);
+      return;
+    }
+  }
+  if (lc.startsWith("add ")) {
+    String rest = c.substring(4); rest.trim();
+    int sp = rest.indexOf(' ');
+    if (sp < 10) { Serial.println("usage: cal add YYYY-MM-DD text"); return; }
+    String d = rest.substring(0, sp), txt = rest.substring(sp + 1);
+    bool ok = calendarAddEvent(d, txt);
+    if (ok && app == App::CALENDAR) renderAndCommit(true);
+    Serial.println(ok ? "cal: added" : "cal: add failed (bad date or full)");
+    return;
+  }
+  if (lc.startsWith("del ")) {
+    String rest = c.substring(4); rest.trim();
+    int sp = rest.indexOf(' ');
+    if (sp < 10) { Serial.println("usage: cal del YYYY-MM-DD <n>"); return; }
+    String d = rest.substring(0, sp);
+    int idx = rest.substring(sp + 1).toInt() - 1;
+    bool okd = calendarDelEvent(d, idx);
+    if (okd && app == App::CALENDAR) renderAndCommit(true);
+    Serial.println(okd ? "cal: deleted" : "cal: delete failed");
+    return;
+  }
+  if (lc == "list") { Serial.println(calendarEventsJson()); return; }
+  Serial.println("usage: cal | cal add YYYY-MM-DD text | cal del YYYY-MM-DD n | cal list | cal today");
 }
 
 void newsCommand(const String& line) {
@@ -885,6 +1028,7 @@ const char* appName() {
   switch (app) {
     case App::HOME: return "home";
     case App::CLOCK: return "clock";
+    case App::CALENDAR: return "calendar";
     case App::NOTES: return "notes";
     case App::IMAGE: return "image";
     case App::SETTINGS: return "settings";
@@ -958,6 +1102,11 @@ panel42::Timings key(const String& k) {
     renderAndCommit(true);
     return lastT;
   }
+  if (app == App::CALENDAR) {
+    calKey(s);
+    renderAndCommit(true);
+    return lastT;
+  }
   if (app == App::PET) {
     petKey(s);
     renderAndCommit(true);
@@ -975,13 +1124,13 @@ panel42::Timings key(const String& k) {
   else if (s == "up") {
     if (app == App::HOME) {
       if (menuSel >= 3) menuSel -= 3;
-      else menuSel = (menuSel < 2) ? menuSel + 6 : 7;
+      else menuSel = 6 + (menuSel % 3);
       homeMoved = true;
     }
     else if (app == App::NOTES && notePage > 0) { notePage--; pageChanged = true; }
   } else if (s == "down") {
     if (app == App::HOME) {
-      if (menuSel + 3 < 8) menuSel += 3;
+      if (menuSel + 3 < MENU_N) menuSel += 3;
       else menuSel = menuSel % 3;
       homeMoved = true;
     }
@@ -1018,13 +1167,14 @@ panel42::Timings key(const String& k) {
     if (app == App::HOME) {
       switch (menuSel) {
         case 0: app = App::CLOCK; break;
-        case 1: app = App::NOTES; notePage = 0; break;
-        case 2: app = App::IMAGE; break;
-        case 3: app = App::QR; break;
-        case 4: app = App::GAMES; break;
-        case 5: newsReset(); app = App::NEWS; break;
-        case 6: app = App::PET; petEnter(); break;
-        case 7: app = App::SETTINGS; break;
+        case 1: calendarOpen(); app = App::CALENDAR; break;
+        case 2: app = App::NOTES; notePage = 0; break;
+        case 3: app = App::IMAGE; break;
+        case 4: app = App::QR; break;
+        case 5: app = App::GAMES; break;
+        case 6: newsReset(); app = App::NEWS; break;
+        case 7: app = App::PET; petEnter(); break;
+        case 8: app = App::SETTINGS; break;
       }
     } else if (app == App::IMAGE || app == App::QR) {
       app = App::HOME;

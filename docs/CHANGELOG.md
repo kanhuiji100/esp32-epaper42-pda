@@ -1,5 +1,17 @@
 # Changelog
 
+## v0.17.0 — 2026-11-02
+
+- New **Calendar** app: month grid with Chinese public holidays, 调休 workdays
+  (`班`) and the 24 solar terms, plus per-day events.
+- Holidays come from the State Council 2025/2026 notices; solar terms are
+  computed astronomically (2025–2035) and embedded.
+- Events in NVS (`cal`), added/deleted from the device, serial (`cal ...`) or the
+  web card; `GET/POST /api/calendar` and `/api/calendar/events`.
+- Home grid is now a full 3×3 (clock, calendar, notes, image, QR, games, news,
+  pet, settings).
+- Fixed: holiday names were truncated by byte length (`国庆` → `??`).
+
 ## v0.16.0 — 2026-11-02
 
 - **Offline news cache** on `/ext/cache/news`: lists per category and article

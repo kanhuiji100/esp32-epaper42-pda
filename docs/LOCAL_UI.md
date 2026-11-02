@@ -96,6 +96,13 @@ cannot overwrite the home screen.
   (never partial, which ghosted on this panel). The sprite is static (no
   breathing animation).
 
+### Calendar
+
+- 3×3 Home grid now has 9 entries (日历 added), so it is a full 3×3.
+- Month grid with holiday names, `班` markers and solar terms; `←/→` day,
+  `↑/↓` week, `OK` day detail, `Back` home.
+- Day detail lists events; `↑/↓` select, `OK` delete.
+
 ### Image gallery
 
 - Pictures live on `/ext/images` as immutable `i%04d.bin` files.

@@ -290,6 +290,16 @@ void handleClient(WiFiClient& c) {
       sendJson(c, 200, storage::infoJson());
       return;
     }
+    if (path == "/api/calendar") {
+      int y = 0, m = 0;
+      getParam(query, "y", y); getParam(query, "m", m);
+      sendJson(c, 200, ui::calendarMonthJson(y, m));
+      return;
+    }
+    if (path == "/api/calendar/events") {
+      sendJson(c, 200, ui::calendarEventsJson());
+      return;
+    }
     if (path == "/api/images") {
       sendJson(c, 200, ui::imagesJson());
       return;
@@ -315,6 +325,16 @@ void handleClient(WiFiClient& c) {
   }
 
   if (method == "DELETE") {
+    if (path == "/api/calendar/event") {
+      String date;
+      int idx = -1;
+      if (!getParamStr(query, "date", date) || !getParam(query, "idx", idx)) {
+        sendJson(c, 400, "{\"ok\":0,\"err\":\"need date,idx\"}"); return;
+      }
+      if (!ui::calendarDelEvent(urlDecode(date), idx)) { sendJson(c, 404, "{\"ok\":0,\"err\":\"not found\"}"); return; }
+      sendJson(c, 200, ui::calendarEventsJson());
+      return;
+    }
     if (path == "/api/storage/file") {
       String p;
       if (!getParamStr(query, "path", p)) {
@@ -335,6 +355,17 @@ void handleClient(WiFiClient& c) {
 
   if (method != "POST") { sendJson(c, 405, "{\"ok\":0,\"err\":\"method not allowed\"}"); return; }
   if (chunked) { sendJson(c, 411, "{\"ok\":0,\"err\":\"chunked body not supported\"}"); return; }
+
+  if (path == "/api/calendar") {          // web helper POSTs by default
+    int y = 0, m = 0;
+    getParam(query, "y", y); getParam(query, "m", m);
+    sendJson(c, 200, ui::calendarMonthJson(y, m));
+    return;
+  }
+  if (path == "/api/calendar/events") {
+    sendJson(c, 200, ui::calendarEventsJson());
+    return;
+  }
 
   if (path == "/api/key") {
     String k = "";
@@ -382,6 +413,24 @@ void handleClient(WiFiClient& c) {
     return;
   }
 
+  if (path == "/api/calendar/event") {
+    String date;
+    if (!getParamStr(query, "date", date)) { sendJson(c, 400, "{\"ok\":0,\"err\":\"need date\"}"); return; }
+    date = urlDecode(date);
+    if (contentLength < 0 || contentLength > 512) { sendJson(c, 400, "{\"ok\":0,\"err\":\"text 0..512\"}"); return; }
+    if (expect100) { c.print("HTTP/1.1 100 Continue\r\n\r\n"); }
+    String txt;
+    uint32_t t0 = millis();
+    while ((int)txt.length() < contentLength && millis() - t0 < 3000) {
+      int n = c.read();
+      if (n < 0) { delay(1); continue; }
+      txt += (char)n;
+    }
+    if (!ui::calendarAddEvent(date, txt)) { sendJson(c, 400, "{\"ok\":0,\"err\":\"add failed\"}"); return; }
+    lastActivity = millis();
+    sendJson(c, 200, ui::calendarEventsJson());
+    return;
+  }
   if (path == "/api/images") {          // the web helper always POSTs, so accept it here too
     sendJson(c, 200, ui::imagesJson());
     return;

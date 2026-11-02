@@ -168,6 +168,24 @@ button:disabled{opacity:.45;cursor:default}
     <p class="hint">存在 /ext/images，掉电不丢。设备上按 ←→ 切换。</p>
   </section>
 
+  <section class="card">
+    <h2>日历与日程</h2>
+    <div class="row">
+      <label>年 <input id="calY" type="number" value="2026" style="width:6em"></label>
+      <label>月 <input id="calM" type="number" value="11" style="width:4em"></label>
+      <button id="btnCalLoad">查看本月</button>
+      <button id="btnCalToday">今天</button>
+    </div>
+    <div id="calInfo" class="hint">—</div>
+    <h3 class="hint" style="margin:10px 0 4px">添加日程</h3>
+    <div class="row">
+      <input id="calDate" type="date" value="2026-11-02">
+      <input id="calText" placeholder="日程内容（≤60字）" style="flex:1">
+      <button id="btnCalAdd" class="primary">添加</button>
+    </div>
+    <div id="calEvents" class="hint">—</div>
+  </section>
+
   <section class="card" style="grid-column:1/-1">
     <h2>日志</h2>
     <div id="log"></div>
@@ -447,6 +465,68 @@ $('btnRefresh').addEventListener('click',async()=>{
   finally{ setBusy(false); }
 });
 
+async function apiDel(path){
+  const r=await fetch(path,{method:'DELETE',cache:'no-store'});
+  const t=await r.text(); let j; try{ j=JSON.parse(t);}catch(e){ throw new Error('HTTP '+r.status); }
+  if(!r.ok||!j.ok) throw new Error(j.err||('HTTP '+r.status));
+  return j;
+}
+
+function calRenderMonth(j){
+  const wk=['日','一','二','三','四','五','六'];
+  let h='<b>'+j.y+'年'+j.m+'月</b>　';
+  const items=[];
+  for(const d of j.days){
+    let s=d.d+'日';
+    if(d.h) s+=' '+d.h+(d.k==2?'(班)':'');
+    if(d.t) s+=' '+d.t;
+    if(d.e) s+=' · '+d.e+'日程';
+    items.push(s);
+  }
+  $('calInfo').innerHTML = j.days.length ? h + items.join('　|　') : h+'本月无标注';
+}
+
+async function calLoadEvents(){
+  try{
+    const j=await api('/api/calendar/events');
+    if(!j.list.length){ $('calEvents').textContent='还没有日程'; return; }
+    let h='';
+    for(const it of j.list){
+      h+='<div class="row" style="align-items:center;gap:6px;margin:2px 0">'
+        +'<code>'+it.date+'</code><span style="flex:1">'+it.text+'</span>'
+        +'<button data-ev="'+it.date+'" data-idx="0">删除</button></div>';
+    }
+    $('calEvents').innerHTML=h;
+    $('calEvents').querySelectorAll('[data-ev]').forEach(b=>b.onclick=async()=>{
+      try{ await apiDel('/api/calendar/event?date='+encodeURIComponent(b.dataset.ev)+'&idx=0'); log('已删除日程','ok'); calLoadEvents(); }
+      catch(e){ log('删除失败：'+e.message,'err'); }
+    });
+  }catch(e){ log('日程：'+e.message,'err'); }
+}
+
+async function calLoadMonth(){
+  try{
+    const y=$('calY').value||'2026', m=$('calM').value||'11';
+    const j=await api('/api/calendar?y='+y+'&m='+m);
+    calRenderMonth(j);
+  }catch(e){ log('日历：'+e.message,'err'); }
+}
+$('btnCalLoad').addEventListener('click',calLoadMonth);
+$('btnCalToday').addEventListener('click',()=>{
+  const n=new Date();
+  $('calY').value=n.getFullYear(); $('calM').value=n.getMonth()+1;
+  $('calDate').value=n.toISOString().slice(0,10);
+  calLoadMonth();
+});
+$('btnCalAdd').addEventListener('click',async()=>{
+  const d=$('calDate').value, t=$('calText').value.trim();
+  if(!d||!t){ log('请填日期和内容','warn'); return; }
+  try{
+    await api('/api/calendar/event?date='+encodeURIComponent(d), new TextEncoder().encode(t));
+    log('已添加日程','ok'); $('calText').value=''; calLoadEvents(); calLoadMonth();
+  }catch(e){ log('添加失败：'+e.message,'err'); }
+});
+
 async function loadImages(){
   try{
     const j=await api('/api/images');
@@ -483,7 +563,13 @@ async function poll(){
 }
 
 log('就绪：用方向键操作设备本地 UI，或拖入图片上传。');
-loadImages();
+async function initAll(){
+  // The device serves one request at a time, so load these sequentially.
+  try{ await loadImages(); }catch(e){}
+  try{ await calLoadEvents(); }catch(e){}
+  try{ await calLoadMonth(); }catch(e){}
+}
+initAll();
 refreshRemote(true);
 loadNote();
 loadHost();
