@@ -16,6 +16,9 @@ The project also documents how the stock Waveshare loader was sped up from
 ## Highlights
 
 - **Local UI on the ESP32** — 400×300 1bpp framebuffer, GB2312 + ASCII bitmap font.
+- **Fast boot** — the first picture is on the panel ~1.5 s after reset and the
+  home screen ~3 s later; Wi-Fi associates in the background instead of holding
+  a blank screen.
 - **Nine screens** — a 3×3 Home grid plus Clock, Notes, Image, QR, Games, News,
   Pet, Settings.
 - **Web remote** — live 15 KB screen mirror, D-pad, app shortcuts, note editor,

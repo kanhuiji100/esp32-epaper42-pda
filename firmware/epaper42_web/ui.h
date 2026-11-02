@@ -5,7 +5,10 @@
 namespace ui {
 extern uint8_t fb[panel42::IMGSZ];
 
+void bootSplash(const String& title, const String& sub, int progress,
+                const String& status);
 void begin();
+void refreshStatus();
 void tick();
 
 panel42::Timings key(const String& k);

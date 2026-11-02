@@ -644,23 +644,36 @@ static void startNetworkServices() {
   Serial.println("HTTP server on :80");
 }
 
-static bool wifiStart(const String& ssid, const String& pass, bool save) {
-  if (ssid.length() == 0) {
-    Serial.println("WiFi: empty SSID");
-    return false;
-  }
-  Serial.printf("WiFi: connecting to %s\r\n", ssid.c_str());
-  if (netReady) {
-    server.end();
-    MDNS.end();
-  }
-  netReady = false;
+// ---- non-blocking Wi-Fi association -------------------------------
+// setup() only kicks off WiFi.begin(); loop() polls here so the panel keeps
+// working (and the boot screen keeps updating) while the radio associates.
+static bool uiStarted = false;
+static uint32_t bootStartMs = 0;
+enum WifiBoot { WB_IDLE, WB_TRYING, WB_DONE };
+static WifiBoot wbState = WB_IDLE;
+static uint32_t wbT0 = 0, wbLastDraw = 0;
+static String wbSsid, wbPass;
+static bool wbSave = false, wbHasFallback = false;
+
+static void wifiBeginTry(const String& ssid, const String& pass, bool save) {
+  wbSsid = ssid; wbPass = pass; wbSave = save;
+  if (netReady) { server.end(); MDNS.end(); netReady = false; }
   WiFi.disconnect(true);
-  delay(120);
   WiFi.mode(WIFI_STA);
   WiFi.setSleep(false);
   WiFi.setHostname(gHostname.c_str());
   WiFi.begin(ssid.c_str(), pass.c_str());
+  wbT0 = millis();
+  wbLastDraw = 0;
+  wbState = WB_TRYING;
+  Serial.printf("WiFi: connecting to %s\r\n", ssid.c_str());
+}
+
+// Blocking variant used by interactive console commands (user is waiting for
+// the answer, so a bounded wait is acceptable here).
+static bool wifiStart(const String& ssid, const String& pass, bool save) {
+  if (ssid.length() == 0) { Serial.println("WiFi: empty SSID"); return false; }
+  wifiBeginTry(ssid, pass, save);
   uint32_t t0 = millis();
   while (WiFi.status() != WL_CONNECTED && millis() - t0 < 20000) {
     delay(250);
@@ -674,19 +687,54 @@ static bool wifiStart(const String& ssid, const String& pass, bool save) {
       Serial.println("WiFi: saved to NVS");
     }
     startNetworkServices();
+    wbState = WB_DONE;
     return true;
   }
   Serial.println("WiFi: connect failed");
+  wbState = WB_DONE;
   return false;
 }
 
-static bool wifiConnectPreferred() {
-  String s, p;
-  bool fromNvs = wifiLoadCredentials(s, p);
-  if (wifiStart(s, p, false)) return true;
-  if (fromNvs && (s != String(DEFAULT_SSID) || p != String(DEFAULT_PASS))) {
-    Serial.println("WiFi: NVS credentials failed, trying secrets.h");
-    return wifiStart(String(DEFAULT_SSID), String(DEFAULT_PASS), false);
+static void wifiBeginPreferred() {
+  String ssid, pass;
+  bool fromNvs = wifiLoadCredentials(ssid, pass);
+  wbHasFallback = fromNvs &&
+                  (ssid != String(DEFAULT_SSID) || pass != String(DEFAULT_PASS));
+  wifiBeginTry(ssid, pass, false);
+}
+
+// Returns true once the boot-time association attempt is finished.
+static bool wifiService() {
+  if (wbState != WB_TRYING) return wbState == WB_DONE;
+  if (WiFi.status() == WL_CONNECTED) {
+    if (wbSave) {
+      wifiPrefs.putString("ssid", wbSsid);
+      wifiPrefs.putString("pass", wbPass);
+      Serial.println("WiFi: saved to NVS");
+    }
+    startNetworkServices();
+    wbState = WB_DONE;
+    return true;
+  }
+  uint32_t elapsed = millis() - wbT0;
+  if (elapsed > 15000) {
+    if (wbHasFallback) {
+      wbHasFallback = false;
+      Serial.println("WiFi: NVS credentials failed, trying secrets.h");
+      wifiBeginTry(String(DEFAULT_SSID), String(DEFAULT_PASS), false);
+      return false;
+    }
+    wbState = WB_DONE;
+    Serial.println("WiFi: no connection, continuing in local mode");
+    return true;
+  }
+  // Only repaint the splash while it is still the visible screen; once the
+  // local UI is up, the background association must not overwrite it.
+  if (!uiStarted && elapsed - wbLastDraw > 2500) {
+    wbLastDraw = elapsed;
+    int pct = 20 + (int)(elapsed * 60 / 15000);
+    ui::bootSplash(gHostname, "电子墨水屏 PDA", pct,
+                   String("正在连接 Wi-Fi ") + wbSsid);
   }
   return false;
 }
@@ -695,39 +743,62 @@ static bool wifiConnectPreferred() {
 
 void setup() {
   Serial.begin(115200);
-  delay(200);
-  Serial.println("\r\n=== E-Paper 4.2 fast web console ===");
+  delay(150);
+  Serial.println("\r\n=== E-Paper 4.2 PDA ===");
+
   panel42::begin();
-  panel42::Timings bt;
-  panel42::bootClear(&bt);
-  Serial.printf("boot clear: total=%lu init=%lu data=%lu refresh=%lu\r\n",
-                (unsigned long)bt.total, (unsigned long)bt.init,
-                (unsigned long)bt.data, (unsigned long)bt.refresh);
   hostnameLoad();
   ui::setHostnameLabel(gHostname, false);
-  Serial.printf("hostname: %s (http://%s.local)\r\n", gHostname.c_str(), gHostname.c_str());
-  WiFi.persistent(false);
-  wifiConnectPreferred();
-  lastActivity = millis();
-  ui::begin();
+
+  // Bring the panel up and draw the first picture immediately: the board must
+  // never sit on a blank white screen while Wi-Fi is associating.
+  panel42::initRegisters();
+  ui::bootSplash(gHostname, "电子墨水屏 PDA", 20, "正在启动…");
+  Serial.printf("first frame at %lu ms\r\n", (unsigned long)millis());
+
   storage::begin();
-  Serial.println("local UI ready");
   console::begin();
+
+  WiFi.persistent(false);
+  wifiBeginPreferred();
+  bootStartMs = millis();
+  lastActivity = bootStartMs;
 }
 
 void loop() {
-  ui::tick();
   console::loop();
+
+  // Wi-Fi associates in the background; the local UI is usable regardless.
+  if (wbState != WB_DONE) wifiService();
+
+  if (!uiStarted) {
+    // Hold the splash just long enough to be readable, then hand over to the
+    // home screen even if the radio is still working.
+    if (wbState != WB_DONE && millis() - bootStartMs < 3000) {
+      delay(5);
+      return;
+    }
+    uiStarted = true;
+    ui::begin();                 // load notes, draw the home screen
+    lastActivity = millis();
+  }
+
+  ui::tick();
+
   if (WiFi.status() != WL_CONNECTED) {
     netReady = false;
-    static uint32_t lastTry = 0;
-    if (millis() - lastTry > 10000) {
-      WiFi.reconnect();
-      lastTry = millis();
-    }
   } else if (!netReady) {
     startNetworkServices();
   }
+
+  // Keep the status bar (Wi-Fi icon / clock) honest when the link changes.
+  static bool prevNet = false;
+  bool curNet = (WiFi.status() == WL_CONNECTED);
+  if (curNet != prevNet) {
+    prevNet = curNet;
+    ui::refreshStatus();
+  }
+
   if (netReady) {
     WiFiClient client = server.available();
     if (client) handleClient(client);

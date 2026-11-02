@@ -1,5 +1,20 @@
 # Changelog
 
+## v0.12.0 — 2026-11-02
+
+- Boot no longer blanks the panel while Wi-Fi associates. `setup()` now brings
+  the panel up and draws a boot splash at ~1.5 s (progress bar, hostname,
+  `http://<host>.local`).
+- Wi-Fi association is non-blocking (`wifiBeginTry` / `wifiService`): the local
+  UI starts after ~3 s regardless of the radio, and the status bar is refreshed
+  when the link comes up. The splash is not repainted after the UI starts.
+- `bootClear()` is no longer used at boot (it cost ~1.25 s and left a white
+  screen); the splash's own full refresh clears ghosting.
+- Fixed the hostname label not reaching the UI at boot (`ui::setHostnameLabel`
+  was dropped from `setup()`).
+- New `ui::bootSplash()` / `ui::refreshStatus()`; console `wifi set` still uses a
+  bounded blocking connect because the user is waiting for the answer.
+
 ## v0.11.1 — 2026-10-31
 
 - Fixed the ~3 s HTTP latency: `readLine()` compared a `char` against the

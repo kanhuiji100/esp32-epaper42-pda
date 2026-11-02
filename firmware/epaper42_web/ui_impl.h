@@ -517,6 +517,51 @@ int encodeQr(const String& payload) {
   return qrcodegen_getSize(qrCand);
 }
 
+
+// ---------------- boot splash ----------------
+// Drawn right after the panel is initialised, before Wi-Fi is touched, so the
+// board shows something useful instead of a blank white screen while the radio
+// is trying to associate.
+void drawBootSplash(const String& title, const String& sub, int progress,
+                    const String& status) {
+  fillRect(0, 0, W, H, PAPER);
+  drawRect(0, 0, W, H, INK);
+  drawRect(3, 3, W - 6, H - 6, INK);
+
+  // Title (scale 3 = 48 px tall) then subtitle well below it.
+  String t = title.length() ? title : String("E-Paper PDA");
+  if (textWidth(t, 3) > W - 40) t = "E-Paper PDA";
+  int tw = textWidth(t, 3);
+  drawText((W - tw) / 2, 34, t, 3, INK);
+
+  String s2 = sub.length() ? sub : String("电子墨水屏 PDA");
+  int sw = textWidth(s2, 1);
+  drawText((W - sw) / 2, 90, s2, 1, INK);
+
+  hline(40, 116, W - 80, INK);
+
+  // Progress bar with the percentage outside, so the fill never covers it.
+  const int bx = 52, by = 138, bw = 240, bh = 20;
+  drawRect(bx, by, bw, bh, INK);
+  int p = progress; if (p < 0) p = 0; if (p > 100) p = 100;
+  int fillw = (bw - 6) * p / 100;
+  if (fillw > 0) fillRect(bx + 3, by + 3, fillw, bh - 6, INK);
+  drawText(bx + bw + 10, by + 4, String(p) + "%", 1, INK);
+
+  if (status.length()) {
+    String st = status;
+    while (textWidth(st, 1) > W - 80 && st.length() > 4) st.remove(st.length() - 1);
+    drawText(40, 176, st, 1, INK);
+  }
+  drawText(40, 200, "本地界面已就绪，可随时使用", 1, INK);
+  drawText(40, 220, "网页遥控与推送需要 Wi-Fi", 1, INK);
+
+  hline(40, 242, W - 80, INK);
+  String url = String("http://") + hostLabel + ".local";
+  int uw = textWidth(url, 1);
+  drawText((W - uw) / 2, 250, url, 1, INK);
+}
+
 void render() {
   switch (app) {
     case App::HOME: drawHome(); break;
@@ -663,6 +708,16 @@ String stateJson() {
   s += ",\"heap\":"; s += (unsigned long)ESP.getFreeHeap();
   s += ",\"time\":\""; s += timeHM(); s += "\"}";
   return s;
+}
+
+// Re-render the current app and let commit() pick a partial refresh: used when
+// the Wi-Fi state changes in the background so the status bar stays truthful.
+void refreshStatus() { renderAndCommit(false); }
+
+void bootSplash(const String& title, const String& sub, int progress,
+                const String& status) {
+  drawBootSplash(title, sub, progress, status);
+  panel42::fullStd(fb, lastT);
 }
 
 void begin() {

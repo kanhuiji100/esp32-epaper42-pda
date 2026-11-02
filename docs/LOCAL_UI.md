@@ -68,6 +68,23 @@ rendered in the browser (the browser only mirrors the device framebuffer).
 - Payload and password live in RAM only; `qr clear` or reboot removes them.
 - The placeholder (no code yet) uses the normal standard waveform.
 
+### Boot sequence
+
+1. `panel42::begin()` + `initRegisters()` — pins, SPI and panel power-up.
+2. `ui::bootSplash()` — the **first picture** is committed with a full refresh at
+   about **1.5 s** after reset, so the board never sits on a blank white screen.
+3. `storage::begin()` and `console::begin()` run while the splash is visible.
+4. Wi-Fi association is started **non-blocking** (`wifiBeginPreferred()`); the
+   loop polls it and repaints the splash progress bar every 2.5 s.
+5. After ~3 s the local UI takes over and the home screen is drawn, whether or
+   not the radio has associated. Wi-Fi keeps working in the background and the
+   status bar is refreshed when the link comes up.
+
+The splash is never repainted once the UI has started, so a slow association
+cannot overwrite the home screen.
+
+![Boot splash](images/boot_splash.png)
+
 ### Pet
 
 - Adopt screen: choose 猫娘 / 狐娘 with `←→` (the status bar shows the selected
