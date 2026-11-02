@@ -254,7 +254,8 @@ int textWidth(const String& s, int scale) {
   while (i < (int)s.length()) {
     uint32_t cp;
     i = utf8Next(s, i, cp);
-    if (cp == '\r\n') { if (w > maxW) maxW = w; w = 0; }
+    if (cp == '\n') { if (w > maxW) maxW = w; w = 0; }
+    else if (cp == '\r') { /* ignore CR */ }
     else if (cp == '\t') w += 4 * 8 * scale;
     else w += glyphWidth(cp) * scale;
   }
@@ -266,7 +267,8 @@ int drawText(int x, int y, const String& s, int scale, uint8_t c) {
   while (i < (int)s.length()) {
     uint32_t cp;
     i = utf8Next(s, i, cp);
-    if (cp == '\r\n') { if (cx - x > maxW) maxW = cx - x; cx = x; cy += 18 * scale; continue; }
+    if (cp == '\n') { if (cx - x > maxW) maxW = cx - x; cx = x; cy += 18 * scale; continue; }
+    if (cp == '\r') { continue; }
     if (cp == '\t') { cx += 4 * 8 * scale; continue; }
     drawGlyph(cx, cy, cp, scale, c);
     cx += glyphWidth(cp) * scale;
@@ -284,7 +286,8 @@ int layoutText(int x, int y, int maxW, int lineH, int maxLines,
     int save = i;
     uint32_t cp;
     i = utf8Next(s, i, cp);
-    if (cp == '\r\n') {
+    if (cp == '\r') { continue; }          // CR is ignored; LF breaks the line
+    if (cp == '\n') {
       cx = x; cy += lineH; lines++;
       if (lines > maxLines) {
         // Consume the newline that ends the last line of this page.  Pointing at
@@ -774,6 +777,59 @@ void petCommand(const String& line) {
     return;
   }
   Serial.println("usage: pet [status|feed|play|sleep|clean|touch|work|adopt cat|fox|name <n>|reset|save]");
+}
+
+void newsCommand(const String& line) {
+  String c = line; c.trim(); c.toLowerCase();
+  if (c == "clear" || c == "clean") { newsCacheClear(); Serial.println("news: cache cleared"); return; }
+  if (c.startsWith("offline")) {
+    int cat = c.length() > 7 ? c.substring(8).toInt() : 0;
+    if (cat < 0 || cat >= NEWS_CAT_N) cat = 0;
+    if (!newsCacheLoadList(cat)) { Serial.println("news: no cache for that category"); return; }
+    nvCatName = NEWS_CATS[cat].name;
+    nvCached = true; nvListSel = 0; nvListTop = 0; nvView = NV_LIST; app = App::NEWS;
+    renderAndCommit(true);
+    Serial.printf("news: showing cached %s (%d items)\r\n", NEWS_CATS[cat].name, nvN);
+    return;
+  }
+  if (c.startsWith("art ")) {
+    int idx = c.substring(4).toInt();
+    if (idx < 0 || idx >= nvN) { Serial.println("news: use 'news show <cat>' first"); return; }
+    String t = newsReadFile(newsArticlePath(nvLink[idx]));
+    Serial.printf("news cache article[%d]: %u bytes  link=%s\r\n",
+                  idx, (unsigned)t.length(), nvLink[idx].c_str());
+    if (t.length()) { Serial.println(t.substring(0, 120)); }
+    return;
+  }
+  if (c.startsWith("show ")) {
+    int cat = c.substring(5).toInt();
+    if (cat < 0 || cat >= NEWS_CAT_N) { Serial.println("news: bad category index"); return; }
+    if (!newsCacheLoadList(cat)) { Serial.println("news: no cache for that category"); return; }
+    Serial.printf("news cache[%s]: %d item(s)\r\n", NEWS_CATS[cat].name, nvN);
+    for (int i = 0; i < nvN && i < 3; i++) {
+      Serial.printf("  %d. %s\r\n", i + 1, nvTitle[i].c_str());
+      Serial.printf("     %s\r\n", nvLink[i].c_str());
+    }
+    return;
+  }
+  int files = 0, lists = 0;
+  size_t bytes = 0;
+  DIR* d = opendir(NEWS_CACHE_DIR);
+  if (d) {
+    struct dirent* e;
+    while ((e = readdir(d)) != nullptr) {
+      if (e->d_name[0] == '.') continue;
+      String p = String(NEWS_CACHE_DIR) + "/" + e->d_name;
+      struct stat st;
+      if (stat(p.c_str(), &st) == 0) bytes += (size_t)st.st_size;
+      files++;
+      if (e->d_name[0] == 'L') lists++;
+    }
+    closedir(d);
+  }
+  Serial.printf("news cache: %d files (%d list files), %u bytes in %s\r\n",
+                files, lists, (unsigned)bytes, NEWS_CACHE_DIR);
+  Serial.println("  news show <cat> | news art <n> | news offline <cat> | news clear");
 }
 
 int imageCount() { return imgCount; }

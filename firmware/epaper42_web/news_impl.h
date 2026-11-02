@@ -49,6 +49,7 @@ static void newsAppendUtf8(String& out, uint32_t cp) {
 }
 
 static String newsDecode(String s) {
+  s.replace("\xE3\x80\x80", " ");   // U+3000 ideographic space -> plain space
   s.replace("&nbsp;", " "); s.replace("&#160;", " ");
   s.replace("&amp;", "&"); s.replace("&quot;", "\"");
   s.replace("&#39;", "'"); s.replace("&apos;", "'");
@@ -70,6 +71,18 @@ static String newsDecode(String s) {
 }
 
 static String newsStrip(String html) {
+  // remove HTML comments first (ads/counters often live in them)
+  {
+    int c0 = 0;
+    while (true) {
+      int a = html.indexOf("<!--", c0);
+      if (a < 0) break;
+      int b = html.indexOf("-->", a + 4);
+      if (b < 0) break;
+      html = html.substring(0, a) + html.substring(b + 3);
+      c0 = a;
+    }
+  }
   // remove script/style blocks
   int p = 0;
   while (true) {
@@ -197,9 +210,13 @@ static bool newsFetchList(int cat) {
 static String newsExtractArticle(const String& html, uint8_t type) {
   String cut = html;
   if (type == 0) {
-    int i = html.indexOf("cont_1_1_2");
+    int i = html.indexOf("class=\"left_zw\"");
+    if (i < 0) i = html.indexOf("cont_1_1_2");
     if (i < 0) i = html.indexOf("class=\"content");
-    if (i >= 0) cut = html.substring(i);
+    if (i >= 0) {
+      int gt = html.indexOf('>', i);
+      if (gt > 0) cut = html.substring(gt + 1);   // skip past the opening tag
+    }
   } else {
     int i = html.indexOf("id=\"paragraph\"");
     if (i < 0) i = html.indexOf("class=\"post_content\"");
@@ -243,14 +260,146 @@ static String newsTruncate(const String& s, int maxBytes) {
   return s.substring(0, n) + "…";
 }
 
+
+// ---------------- offline cache on /ext/cache/news ----------------
+// Lists are one file per category (L<cat>.txt, 3 lines per item); articles are
+// keyed by a hash of the link. Every write is compare-before-write, so opening
+// the news app repeatedly does NOT keep erasing the same flash blocks.
+static const char* NEWS_CACHE_DIR = "/ext/cache/news";
+static bool nvCached = false;
+
+static uint32_t newsHash(const String& s) {
+  uint32_t h = 2166136261u;
+  for (size_t i = 0; i < s.length(); i++) { h ^= (uint8_t)s[i]; h *= 16777619u; }
+  return h;
+}
+
+static String newsReadFile(const String& path) {
+  FILE* f = fopen(path.c_str(), "rb");
+  if (!f) return "";
+  String out;
+  char buf[512];
+  size_t n;
+  while ((n = fread(buf, 1, sizeof(buf), f)) > 0) out.concat(buf, n);
+  fclose(f);
+  return out;
+}
+
+static bool newsWriteIfChanged(const String& path, const String& data) {
+  if (!storage::extReady() || data.length() == 0) return false;
+  mkdir("/ext/cache", 0777);
+  mkdir(NEWS_CACHE_DIR, 0777);
+  String old = newsReadFile(path);
+  if (old.length() == data.length() && old == data) return true;   // nothing changed
+  FILE* f = fopen(path.c_str(), "wb");
+  if (!f) return false;
+  size_t w = fwrite(data.c_str(), 1, data.length(), f);
+  fclose(f);
+  return w == data.length();
+}
+
+static String newsListPath(int cat) {
+  return String(NEWS_CACHE_DIR) + "/L" + String(cat) + ".txt";
+}
+
+static void newsCacheSaveList(int cat) {
+  String d;
+  d.reserve(nvN * 96);
+  for (int i = 0; i < nvN; i++) {
+    String t = nvTitle[i]; t.replace("\n", " "); t.replace("\r", " ");
+    String m = nvSummary[i]; m.replace("\n", " "); m.replace("\r", " ");
+    d += t; d += '\n'; d += nvLink[i]; d += '\n'; d += m; d += '\n';
+  }
+  newsWriteIfChanged(newsListPath(cat), d);
+}
+
+static String newsClean(const String& in) {
+  String t = in;
+  t.replace("\r", "");               // stray CRs render as tofu on the panel
+  t.replace("\xE3\x80\x80", " ");   // U+3000 -> space
+  t.replace("\xC2\xA0", " ");       // NBSP
+  t.replace("\xEF\xBF\xBD", "");    // U+FFFD (decode error) -> drop
+  while (t.indexOf("\n\n\n") >= 0) t.replace("\n\n\n", "\n\n");
+  return t;
+}
+
+static bool newsCacheLoadList(int cat) {
+  newsAlloc();                       // list buffers live on the heap and may not exist yet
+  if (!nvTitle || !nvLink || !nvSummary) return false;
+  String d = newsReadFile(newsListPath(cat));
+  if (d.length() < 8) return false;
+  nvN = 0;
+  int p = 0;
+  while (nvN < NEWS_LIST_N) {
+    int a = d.indexOf('\n', p); if (a < 0) break;
+    int b = d.indexOf('\n', a + 1); if (b < 0) break;
+    int c = d.indexOf('\n', b + 1); if (c < 0) break;
+    String t = d.substring(p, a);
+    String l = d.substring(a + 1, b);
+    String m = d.substring(b + 1, c);
+    if (t.length()) { nvTitle[nvN] = newsClean(t); nvLink[nvN] = l; nvSummary[nvN] = newsClean(m); nvN++; }
+    p = c + 1;
+  }
+  return nvN > 0;
+}
+
+static String newsArticlePath(const String& link) {
+  char b[16];
+  snprintf(b, sizeof(b), "%08x", (unsigned)newsHash(link));
+  return String(NEWS_CACHE_DIR) + "/" + b + ".txt";
+}
+
+// Keep the article cache bounded so it never fills the chip.
+static void newsCacheEvict() {
+  DIR* d = opendir(NEWS_CACHE_DIR);
+  if (!d) return;
+  int n = 0;
+  String first;
+  struct dirent* e;
+  while ((e = readdir(d)) != nullptr) {
+    if (e->d_name[0] == 'L' || e->d_name[0] == '.') continue;
+    if (!strstr(e->d_name, ".txt")) continue;
+    n++;
+    if (first.length() == 0) first = e->d_name;
+  }
+  closedir(d);
+  if (n >= 60 && first.length())
+    remove((String(NEWS_CACHE_DIR) + "/" + first).c_str());
+}
+
+static void newsCacheSaveArticle(const String& link, const String& text) {
+  if (text.length() < 200) return;   // don't cache a failed/thin extraction
+  newsCacheEvict();
+  newsWriteIfChanged(newsArticlePath(link), text);
+}
+
+static void newsCacheClear() {
+  DIR* d = opendir(NEWS_CACHE_DIR);
+  if (!d) return;
+  struct dirent* e;
+  while ((e = readdir(d)) != nullptr) {
+    if (e->d_name[0] == '.') continue;
+    remove((String(NEWS_CACHE_DIR) + "/" + e->d_name).c_str());
+  }
+  closedir(d);
+}
+
 static void newsLoadList(int cat) {
   nvCatName = NEWS_CATS[cat].name;
-  if (WiFi.status() != WL_CONNECTED) { nvMsg = "WiFi 未连接"; nvView = NV_ERROR; return; }
-  nvView = NV_LOADING; nvMsg = String("正在获取 ") + NEWS_CATS[cat].name + " …";
-  renderAndCommit(true);
-  if (!newsFetchList(cat)) { nvMsg = "获取失败，请重试"; nvView = NV_ERROR; return; }
+  nvCached = false;
   nvListSel = 0;
   nvListTop = 0;
+  if (WiFi.status() != WL_CONNECTED) {
+    if (newsCacheLoadList(cat)) { nvCached = true; nvView = NV_LIST; return; }
+    nvMsg = "WiFi 未连接，且没有缓存"; nvView = NV_ERROR; return;
+  }
+  nvView = NV_LOADING; nvMsg = String("正在获取 ") + NEWS_CATS[cat].name + " …";
+  renderAndCommit(true);
+  if (!newsFetchList(cat)) {
+    if (newsCacheLoadList(cat)) { nvCached = true; nvView = NV_LIST; return; }
+    nvMsg = "获取失败，且没有缓存"; nvView = NV_ERROR; return;
+  }
+  newsCacheSaveList(cat);
   nvView = NV_LIST;
 }
 
@@ -259,12 +408,20 @@ static void newsLoadArticle(int idx) {
   nvView = NV_LOADING; nvMsg = "正在打开文章 …";
   renderAndCommit(true);
   String text;
-  if (nvLink[idx].startsWith("http")) {
+  nvCached = false;
+  if (WiFi.status() == WL_CONNECTED && nvLink[idx].startsWith("http")) {
     String html = newsHttpGet(nvLink[idx], 60000);
     if (html.length() > 200) text = newsExtractArticle(html, NEWS_CATS[nvCatSel].type);
   }
+  if (text.length() >= 60) {
+    newsCacheSaveArticle(nvLink[idx], text);
+  } else {
+    String c = newsReadFile(newsArticlePath(nvLink[idx]));
+    if (c.length() >= 60) { text = c; nvCached = true; }
+  }
   if (text.length() < 60) text = nvSummary[idx];
-  if (text.length() < 20) text = "（无法获取正文，请返回重试）";
+  if (text.length() < 20) text = "（无正文，且没有缓存）";
+  text = newsClean(text);
   nvText = nvTitle[idx] + "\r\n\r\n" + text;
   nvPages = newsCountPages(nvText);
   nvPage = 0;
@@ -306,7 +463,7 @@ static void drawNewsApp() {
     return;
   }
   if (nvView == NV_LIST) {
-    drawStatus("新闻", nvCatName.c_str());
+    drawStatus("新闻", (nvCatName + (nvCached ? "·缓存" : "")).c_str());
     const int top = 34, ih = 38, rows = 6;
     for (int row = 0; row < rows; row++) {
       int i = nvListTop + row;
@@ -324,7 +481,7 @@ static void drawNewsApp() {
     return;
   }
   // article
-  drawStatus("新闻", (String(nvPage + 1) + "/" + String(nvPages)).c_str());
+  drawStatus("新闻", (String(nvCached ? "缓存 " : "") + String(nvPage + 1) + "/" + String(nvPages)).c_str());
   int start = 0;
   for (int p = 0; p < nvPage; p++) {
     int next = start;

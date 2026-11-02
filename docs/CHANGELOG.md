@@ -1,5 +1,20 @@
 # Changelog
 
+## v0.16.0 — 2026-11-02
+
+- **Offline news cache** on `/ext/cache/news`: lists per category and article
+  text keyed by link hash. Automatic fallback when the network fails, marked
+  "缓存" in the status bar; `news offline <cat>` shows a cached list.
+- Cache writes are compare-before-write and article files are capped/evicted, so
+  repeated reading does not wear the flash.
+- **Fixed a long-standing text bug**: the renderer compared a code point against
+  the multi-character literal `'\r\n'` (0x0D0A), so newlines were never
+  recognised and CR/LF were drawn as tofu boxes. Newlines now break lines
+  properly — this fixes notes, news and every wrapped text.
+- Improved article extraction (skip past the container's opening tag, drop ad
+  comments, ignore junk paragraphs) and sanitise U+3000 / NBSP / U+FFFD / CR.
+- `news` console command: stats, `show <cat>`, `art <n>`, `offline <cat>`, `clear`.
+
 ## v0.15.0 — 2026-11-02
 
 - Pictures are now stored on `/ext/images` instead of RAM: they survive reboots

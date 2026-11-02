@@ -152,6 +152,7 @@ static void printHelp() {
   Serial.println("  fb                     base64-dump the 15 KB framebuffer");
   Serial.println("  kbd [scan|pins <sda> <scl>|forget]  VK36N16I keypad");
   Serial.println("  img [show <n>|del <n>|rescan]    image gallery on /ext/images");
+  Serial.println("  news [clear]                     offline news cache stats / wipe");
   Serial.println("  flash [probe|pins <clk> <miso> <mosi> <cs>]  external W25Qxx");
   Serial.println("  status                 app/UI + network + panel state");
   Serial.println("  screen                 ASCII preview of the 400x300 framebuffer");
@@ -360,6 +361,15 @@ static void handleLine(const String& raw) {
     int sp = line.indexOf(' ');
     if (sp >= 0) { rest = line.substring(sp + 1); rest.trim(); }
     ui::petCommand(rest);
+    lastActivity = millis();
+    return;
+  }
+
+  if (cmd == "news") {
+    String rest;
+    int sp = line.indexOf(' ');
+    if (sp >= 0) { rest = line.substring(sp + 1); rest.trim(); }
+    ui::newsCommand(rest);
     lastActivity = millis();
     return;
   }

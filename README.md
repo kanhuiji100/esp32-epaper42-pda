@@ -16,6 +16,8 @@ The project also documents how the stock Waveshare loader was sped up from
 ## Highlights
 
 - **Local UI on the ESP32** — 400×300 1bpp framebuffer, GB2312 + ASCII bitmap font.
+- **Offline news cache** — lists and articles are cached on the flash and shown
+  automatically when the network is unavailable.
 - **Image gallery** — pictures are stored on `/ext/images` (survive reboots,
   browse with `←`/`→`, manage from the web or serial) using an append-only,
   wear-conscious write strategy.

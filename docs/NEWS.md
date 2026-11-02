@@ -41,6 +41,29 @@ page. If the page cannot be parsed, the RSS summary is shown instead.
 Web remote: the **新闻** shortcut plus the D-pad.
 Serial: `app news`, then `key ...` as above.
 
+## Offline cache
+
+Lists and articles are cached on the external flash under `/ext/cache/news`:
+
+- `L<cat>.txt` — the last list for each category (3 lines per item:
+  title / link / summary).
+- `<hash>.txt` — article text, keyed by an FNV-1a hash of the link.
+
+When a fetch fails (no Wi-Fi or upstream error) the app shows the cached copy and
+marks the status bar with **缓存**. Cached lists can also be opened directly with
+`news offline <cat>` from the serial console.
+
+![Cached article](images/news_cached.png)
+
+### Flash wear
+
+- Every write is **compare-before-write**: if the fetched list/article is
+  identical to what is already stored, nothing is written. Re-opening the news
+  app therefore does not keep erasing the same blocks.
+- Lists are one small file per category; articles are capped at ~60 files and the
+  oldest is evicted, so the cache cannot fill the chip.
+- Everything goes through LittleFS (log-structured, wear-levelled).
+
 ## Notes and limits
 
 - Requires an internet connection; if Wi-Fi is down the app shows an error.

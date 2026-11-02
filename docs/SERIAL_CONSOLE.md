@@ -79,6 +79,7 @@ then falls back to `secrets.h`.
 | `flash [probe\|pins <clk> <miso> <mosi> <cs>]` | external W25Qxx JEDEC probe / pin assignment |
 | `mkdir <path>` | create a directory on `/int` or `/ext` |
 | `img [show <n>\|del <n>\|rescan]` | picture gallery on `/ext/images` |
+| `news [clear\|show <cat>\|art <n>\|offline <cat>]` | offline news cache stats / inspect / wipe |
 | `fb` | base64-dump the 15 KB framebuffer for host-side PNG rendering |
 | `note` | print current note |
 | `note <text>` | set note (UTF-8, one line) and save to NVS |

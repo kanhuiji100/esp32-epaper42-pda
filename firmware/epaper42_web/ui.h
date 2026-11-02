@@ -23,6 +23,7 @@ bool imageSelect(int idx);
 bool imageDelete(int idx);
 void imageRescan();
 String imagesJson();
+void newsCommand(const String& line);
 bool setQr(const String& payload, const String& type);
 bool setWifiQr(const String& ssid, const String& pass);
 void clearQr();
