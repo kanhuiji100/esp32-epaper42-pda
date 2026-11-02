@@ -1,5 +1,12 @@
 # Changelog
 
+## v0.17.2 — 2026-11-02
+
+- Fixed Home navigation: the right-hand boundary still used the old 8-item
+  constant (`menuSel + 1 < 8`), so pressing right on 宠物 (index 7) wrapped to
+  the start of the row instead of moving to 设置. Left/right/up/down now use
+  `MENU_N` and the real row length, so any menu size wraps correctly.
+
 ## v0.17.1 — 2026-11-02
 
 - Calendar now shows the **lunar date** (农历): the lunar day in every cell, the

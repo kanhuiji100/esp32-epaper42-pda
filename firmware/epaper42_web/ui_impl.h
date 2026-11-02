@@ -1125,15 +1125,21 @@ panel42::Timings key(const String& k) {
   else if (s == "back") app = App::HOME;
   else if (s == "up") {
     if (app == App::HOME) {
+      int col = menuSel % 3;
       if (menuSel >= 3) menuSel -= 3;
-      else menuSel = 6 + (menuSel % 3);
+      else {
+        int lastRow = (MENU_N - 1) / 3;
+        int target = lastRow * 3 + col;
+        menuSel = (target < MENU_N) ? target : (MENU_N - 1);
+      }
       homeMoved = true;
     }
     else if (app == App::NOTES && notePage > 0) { notePage--; pageChanged = true; }
   } else if (s == "down") {
     if (app == App::HOME) {
+      int col = menuSel % 3;
       if (menuSel + 3 < MENU_N) menuSel += 3;
-      else menuSel = menuSel % 3;
+      else menuSel = col;                      // wrap up to the first row
       homeMoved = true;
     }
     else if (app == App::NOTES && notePage + 1 < notePages()) { notePage++; pageChanged = true; }
@@ -1146,8 +1152,10 @@ panel42::Timings key(const String& k) {
     }
     else if (app == App::HOME) {
       int row = menuSel / 3;
-      if (menuSel % 3 > 0) menuSel--;
-      else menuSel = row * 3 + (row == 2 ? 1 : 2);
+      int inRow = MENU_N - row * 3; if (inRow > 3) inRow = 3;
+      int col = menuSel - row * 3;
+      if (col > 0) menuSel--;
+      else menuSel = row * 3 + inRow - 1;      // wrap to the row's last item
       homeMoved = true;
     }
     else if (app == App::NOTES && notePage > 0) { notePage--; pageChanged = true; }
@@ -1160,8 +1168,10 @@ panel42::Timings key(const String& k) {
     }
     else if (app == App::HOME) {
       int row = menuSel / 3;
-      if (menuSel % 3 < 2 && menuSel + 1 < 8) menuSel++;
-      else menuSel = row * 3;
+      int inRow = MENU_N - row * 3; if (inRow > 3) inRow = 3;
+      int col = menuSel - row * 3;
+      if (col + 1 < inRow) menuSel++;
+      else menuSel = row * 3;                  // wrap to the row's first item
       homeMoved = true;
     }
     else if (app == App::NOTES && notePage + 1 < notePages()) { notePage++; pageChanged = true; }
