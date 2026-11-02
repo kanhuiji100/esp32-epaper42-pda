@@ -96,6 +96,12 @@ cannot overwrite the home screen.
   (never partial, which ghosted on this panel). The sprite is static (no
   breathing animation).
 
+### Image gallery
+
+- Pictures live on `/ext/images` as immutable `i%04d.bin` files.
+- `←` / `→` browse; the status bar shows the position (`2/5`).
+- Content is read from flash on demand; nothing is written while viewing.
+
 ### News
 
 - Category list: 要闻 / 国内 / 国际 / 社会 / 体育 / 财经 / 科技.

@@ -15,6 +15,14 @@ panel42::Timings key(const String& k);
 panel42::Timings setApp(const String& name);
 panel42::Timings setNote(const String& text);
 void setImage(const uint8_t* img, bool alreadyOnScreen);
+// Image gallery on /ext/images
+int imageCount();
+int imageCurrent();
+bool imageSave(const uint8_t* data, int& idxOut);
+bool imageSelect(int idx);
+bool imageDelete(int idx);
+void imageRescan();
+String imagesJson();
 bool setQr(const String& payload, const String& type);
 bool setWifiQr(const String& ssid, const String& pass);
 void clearQr();

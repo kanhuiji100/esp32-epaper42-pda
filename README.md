@@ -16,6 +16,9 @@ The project also documents how the stock Waveshare loader was sped up from
 ## Highlights
 
 - **Local UI on the ESP32** — 400×300 1bpp framebuffer, GB2312 + ASCII bitmap font.
+- **Image gallery** — pictures are stored on `/ext/images` (survive reboots,
+  browse with `←`/`→`, manage from the web or serial) using an append-only,
+  wear-conscious write strategy.
 - **16 MB external flash** — a W25Q128 on HSPI is mounted at `/ext` with
   directories, automatic parent creation and reboot-safe contents; `/int`
   (384 KB internal LittleFS) stays for small files.
@@ -232,6 +235,7 @@ docs/
 ├── NEWS.md
 ├── PET.md
 ├── KEYPAD.md
+├── IMAGES.md
 └── images/
 ```
 

@@ -26,8 +26,110 @@ int menuSel = 0;
 int notePage = 0;
 String note;
 String hostLabel = "epaper42";
+Preferences prefs;
 bool hasImage = false;
 uint8_t imageFb[IMGSZ];
+
+// ---- image gallery on /ext/images -------------------------------------------
+// Files are immutable once written (name i0000.bin ...), so a photo is written
+// exactly once and every later view is a pure read. This keeps flash wear down:
+// LittleFS already spreads writes (log-structured, dynamic wear levelling) and
+// the only recurring write is the 4-byte "current index" in NVS, and only when
+// the user actually switches picture.
+constexpr int IMG_MAX = 200;
+constexpr const char* IMG_DIR = "/ext/images";
+// Name table lives on the heap: it is only needed while browsing the gallery.
+char (*imgNames)[13] = nullptr;
+int imgCount = 0;
+int imgCur = 0;
+
+bool imgAlloc() {
+  if (!imgNames) imgNames = (char(*)[13])malloc(IMG_MAX * 13);
+  return imgNames != nullptr;
+}
+
+int imgCompareNames(const void* a, const void* b) {
+  return strcmp((const char*)a, (const char*)b);
+}
+
+void imgScan() {
+  imgCount = 0;
+  if (!storage::extReady() || !imgAlloc()) return;
+  DIR* d = opendir(IMG_DIR);
+  if (!d) return;
+  struct dirent* e;
+  while ((e = readdir(d)) != nullptr && imgCount < IMG_MAX) {
+    const char* n = e->d_name;
+    size_t L = strlen(n);
+    if (L != 9 || n[0] != 'i' || strcmp(n + 5, ".bin") != 0) continue;
+    bool digits = true;
+    for (int k = 1; k <= 4; k++) if (n[k] < '0' || n[k] > '9') digits = false;
+    if (!digits) continue;
+    strncpy(imgNames[imgCount], n, 12);
+    imgNames[imgCount][12] = 0;
+    imgCount++;
+  }
+  closedir(d);
+  if (imgCount > 1) qsort(imgNames, imgCount, sizeof(imgNames[0]), imgCompareNames);
+}
+
+String imgPath(int idx) {
+  if (idx < 0 || idx >= imgCount) return "";
+  return String(IMG_DIR) + "/" + imgNames[idx];
+}
+
+void imgLoadPrefs() {
+  prefs.begin("pda", false);
+  imgCur = prefs.getInt("img_cur", 0);
+  prefs.end();
+}
+
+bool imageLoadIndex(int idx) {
+  if (idx < 0 || idx >= imgCount) return false;
+  FILE* f = fopen(imgPath(idx).c_str(), "rb");
+  if (!f) return false;
+  size_t n = fread(imageFb, 1, IMGSZ, f);
+  fclose(f);
+  if (n != IMGSZ) return false;
+  hasImage = true;
+  return true;
+}
+
+// Persist a new picture as the next slot and make it current.
+bool imageSaveNew(const uint8_t* data, int& idxOut) {
+  if (!storage::extReady()) return false;
+  if (imgCount >= IMG_MAX) return false;
+  // Nothing to do if it is byte-identical to what is already shown.
+  if (hasImage && memcmp(data, imageFb, IMGSZ) == 0) { idxOut = imgCur; return true; }
+  char dir[32]; strcpy(dir, IMG_DIR);
+  mkdir(dir, 0777);
+  int next = 0;
+  if (imgCount > 0) next = atoi(imgNames[imgCount - 1] + 1) + 1;
+  char name[16];
+  snprintf(name, sizeof(name), "i%04d.bin", next % 10000);
+  String path = String(IMG_DIR) + "/" + name;
+  FILE* f = fopen(path.c_str(), "wb");
+  if (!f) return false;
+  size_t w = fwrite(data, 1, IMGSZ, f);
+  fclose(f);
+  if (w != IMGSZ) { remove(path.c_str()); return false; }
+  imgScan();
+  idxOut = imgCount - 1;
+  imgCur = idxOut;
+  prefs.begin("pda", false); prefs.putInt("img_cur", imgCur); prefs.end();
+  return true;
+}
+
+bool imageDeleteIndex(int idx) {
+  String p = imgPath(idx);
+  if (p.length() == 0) return false;
+  if (remove(p.c_str()) != 0) return false;
+  imgScan();
+  if (imgCur >= imgCount) imgCur = imgCount > 0 ? imgCount - 1 : 0;
+  prefs.begin("pda", false); prefs.putInt("img_cur", imgCur); prefs.end();
+  if (imgCount > 0) imageLoadIndex(imgCur); else hasImage = false;
+  return true;
+}
 String qrPayload, qrType;
 bool qrValid = false;
 int qrSize = 0;
@@ -36,7 +138,6 @@ uint8_t qrTemp[qrcodegen_BUFFER_LEN_MAX];
 uint8_t qrCand[qrcodegen_BUFFER_LEN_MAX];
 panel42::Timings lastT;
 int lastMin = -1;
-Preferences prefs;
 
 // ---------------- framebuffer ----------------
 void putPx(int x, int y, uint8_t c) {
@@ -481,6 +582,12 @@ void drawQrApp() {
 void drawImageApp() {
   if (hasImage) {
     memcpy(fb, imageFb, IMGSZ);
+    // overlay the gallery position in the status bar
+    if (imgCount > 1) {
+      String pos = String(imgCur + 1) + "/" + String(imgCount);
+      fillRect(0, 0, W, 26, PAPER);
+      drawStatus("图片", pos.c_str());
+    }
     return;
   }
   fillRect(0, 0, W, H, PAPER);
@@ -669,6 +776,53 @@ void petCommand(const String& line) {
   Serial.println("usage: pet [status|feed|play|sleep|clean|touch|work|adopt cat|fox|name <n>|reset|save]");
 }
 
+int imageCount() { return imgCount; }
+int imageCurrent() { return imgCur; }
+void imageRescan() { imgScan(); }
+
+// Persist only: the caller has already pushed the frame to the panel, so this
+// must not refresh again (an extra full refresh per upload is pure flash wear).
+bool imageSave(const uint8_t* data, int& idxOut) {
+  bool ok = imageSaveNew(data, idxOut);
+  if (ok) { hasImage = true; app = App::IMAGE; memcpy(imageFb, data, IMGSZ); }
+  return ok;
+}
+
+bool imageSelect(int idx) {
+  if (idx < 0 || idx >= imgCount) return false;
+  if (!imageLoadIndex(idx)) return false;
+  if (idx != imgCur) {           // only touch NVS when the selection really changes
+    imgCur = idx;
+    prefs.begin("pda", false); prefs.putInt("img_cur", imgCur); prefs.end();
+  }
+  imgCur = idx;
+  app = App::IMAGE;
+  renderAndCommit(true);
+  return true;
+}
+
+bool imageDelete(int idx) {
+  if (!imageDeleteIndex(idx)) return false;
+  if (app == App::IMAGE) renderAndCommit(true);
+  return true;
+}
+
+String imagesJson() {
+  String o;
+  o.reserve(160 + imgCount * 48);
+  o += "{\"ok\":1,\"cur\":"; o += imgCur;
+  o += ",\"count\":"; o += imgCount;
+  o += ",\"items\":[";
+  for (int i = 0; i < imgCount; i++) {
+    if (i) o += ',';
+    o += "{\"idx\":"; o += i;
+    o += ",\"name\":\""; o += imgNames[i]; o += "\"";
+    o += ",\"size\":15000}";
+  }
+  o += "]}";
+  return o;
+}
+
 const uint8_t* screen() { return fb; }
 
 const char* appName() {
@@ -729,6 +883,12 @@ void begin() {
   menuSel = 0;
   notePage = 0;
   hasImage = false;
+  imgScan();
+  imgLoadPrefs();
+  if (imgCount > 0) {
+    if (imgCur >= imgCount) imgCur = 0;
+    imageLoadIndex(imgCur);
+  }
   memset(fb, 0xFF, IMGSZ);
   renderAndCommit(true);
 }
@@ -771,7 +931,13 @@ panel42::Timings key(const String& k) {
     }
     else if (app == App::NOTES && notePage + 1 < notePages()) { notePage++; pageChanged = true; }
   } else if (s == "left") {
-    if (app == App::HOME) {
+    if (app == App::IMAGE && imgCount > 1) {
+      imgCur = (imgCur + imgCount - 1) % imgCount;
+      imageLoadIndex(imgCur);
+      prefs.begin("pda", false); prefs.putInt("img_cur", imgCur); prefs.end();
+      pageChanged = true;
+    }
+    else if (app == App::HOME) {
       int row = menuSel / 3;
       if (menuSel % 3 > 0) menuSel--;
       else menuSel = row * 3 + (row == 2 ? 1 : 2);
@@ -779,7 +945,13 @@ panel42::Timings key(const String& k) {
     }
     else if (app == App::NOTES && notePage > 0) { notePage--; pageChanged = true; }
   } else if (s == "right") {
-    if (app == App::HOME) {
+    if (app == App::IMAGE && imgCount > 1) {
+      imgCur = (imgCur + 1) % imgCount;
+      imageLoadIndex(imgCur);
+      prefs.begin("pda", false); prefs.putInt("img_cur", imgCur); prefs.end();
+      pageChanged = true;
+    }
+    else if (app == App::HOME) {
       int row = menuSel / 3;
       if (menuSel % 3 < 2 && menuSel + 1 < 8) menuSel++;
       else menuSel = row * 3;

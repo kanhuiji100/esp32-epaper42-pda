@@ -290,6 +290,10 @@ void handleClient(WiFiClient& c) {
       sendJson(c, 200, storage::infoJson());
       return;
     }
+    if (path == "/api/images") {
+      sendJson(c, 200, ui::imagesJson());
+      return;
+    }
     if (path == "/api/storage/list") {
       String p = "/int";
       getParamStr(query, "path", p);
@@ -375,6 +379,24 @@ void handleClient(WiFiClient& c) {
     ui::setNote(text);
     lastActivity = millis();
     sendJson(c, 200, ui::stateJson());
+    return;
+  }
+
+  if (path == "/api/images") {          // the web helper always POSTs, so accept it here too
+    sendJson(c, 200, ui::imagesJson());
+    return;
+  }
+  if (path == "/api/images/select" || path == "/api/images/delete") {
+    int idx = -1;
+    if (!getParam(query, "idx", idx)) { sendJson(c, 400, "{\"ok\":0,\"err\":\"need idx\"}"); return; }
+    bool ok = (path == "/api/images/select") ? ui::imageSelect(idx) : ui::imageDelete(idx);
+    lastActivity = millis();
+    sendJson(c, 200, ok ? ui::imagesJson() : String("{\"ok\":0,\"err\":\"bad idx\"}"));
+    return;
+  }
+  if (path == "/api/images/rescan") {
+    ui::imageRescan();
+    sendJson(c, 200, ui::imagesJson());
     return;
   }
 
@@ -522,9 +544,15 @@ void handleClient(WiFiClient& c) {
     if (fm == "std")      panel42::fullStd(rxbuf, t);
     else if (fm == "hq")  panel42::fullHq(rxbuf, t);
     else                  panel42::fullFast(rxbuf, t);
-    ui::setImage(rxbuf, true);
+    String sv = "0";
+    getParamStr(query, "save", sv);
+    int savedIdx = -1;
+    bool saved = false;
+    if (sv == "1") saved = ui::imageSave(rxbuf, savedIdx);
+    ui::setImage(rxbuf, true);          // already on screen: no extra refresh
     lastActivity = millis();
-    Serial.printf("FULL %s total=%lu init=%lu data=%lu refresh=%lu\r\n", fm.c_str(),
+    Serial.printf("FULL %s saved=%d idx=%d total=%lu init=%lu data=%lu refresh=%lu\r\n",
+                  fm.c_str(), saved ? 1 : 0, savedIdx,
                   (unsigned long)t.total, (unsigned long)t.init,
                   (unsigned long)t.data, (unsigned long)t.refresh);
     sendTiming(c, fm.c_str(), t);

@@ -151,6 +151,7 @@ static void printHelp() {
   Serial.println("  log [on|off]           toggle web UI request logging");
   Serial.println("  fb                     base64-dump the 15 KB framebuffer");
   Serial.println("  kbd [scan|pins <sda> <scl>|forget]  VK36N16I keypad");
+  Serial.println("  img [show <n>|del <n>|rescan]    image gallery on /ext/images");
   Serial.println("  flash [probe|pins <clk> <miso> <mosi> <cs>]  external W25Qxx");
   Serial.println("  status                 app/UI + network + panel state");
   Serial.println("  screen                 ASCII preview of the 400x300 framebuffer");
@@ -359,6 +360,23 @@ static void handleLine(const String& raw) {
     int sp = line.indexOf(' ');
     if (sp >= 0) { rest = line.substring(sp + 1); rest.trim(); }
     ui::petCommand(rest);
+    lastActivity = millis();
+    return;
+  }
+
+  if (cmd == "img" || cmd == "image") {
+    String sub = (argc >= 2) ? args[1] : "";
+    sub.toLowerCase();
+    if (sub == "show" && argc >= 3) {
+      Serial.println(ui::imageSelect(args[2].toInt()) ? "img: ok" : "img: bad index");
+    } else if (sub == "del" && argc >= 3) {
+      Serial.println(ui::imageDelete(args[2].toInt()) ? "img: deleted" : "img: delete failed");
+    } else if (sub == "rescan") {
+      ui::imageRescan();
+      Serial.printf("img: %d picture(s), current %d\r\n", ui::imageCount(), ui::imageCurrent());
+    } else {
+      Serial.println(ui::imagesJson());
+    }
     lastActivity = millis();
     return;
   }

@@ -1,5 +1,18 @@
 # Changelog
 
+## v0.15.0 — 2026-11-02
+
+- Pictures are now stored on `/ext/images` instead of RAM: they survive reboots
+  and you can keep a gallery (up to 200).
+- Device: `←`/`→` browse the gallery, status bar shows `n/total`.
+- Web: "存到 Flash" checkbox on upload, plus a 图片库 card to show/delete.
+- Serial: `img`, `img show <n>`, `img del <n>`, `img rescan`.
+- API: `GET /api/images`, `POST /api/images/select|delete|rescan`,
+  `POST /api/full?...&save=1`.
+- Flash wear: append-only immutable files, duplicate suppression, NVS-only
+  4-byte selection state written on change, no scratch/log files, LittleFS wear
+  levelling. See [IMAGES.md](IMAGES.md).
+
 ## v0.14.0 — 2026-11-02
 
 - **External W25Q128 verified on hardware**: JEDEC `EF 40 18`, `/ext` mounts

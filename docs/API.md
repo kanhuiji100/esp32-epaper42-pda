@@ -135,7 +135,11 @@ curl -X POST 'http://<ip>/api/key?k=back'
 curl -X POST 'http://<ip>/api/key?k=home'
 ```
 
-`left` / `right` also page the notes app. `app` accepts `news`, `pet`, `games`, `gomoku` and `ddz` in addition to the base apps. The response is the `/api/ui` JSON
+`left` / `right` also page the notes app. `app` accepts `news`, `pet`, `games`, `gomoku` and `ddz` in addition to the base apps.
+
+Image gallery: `GET /api/images`, `POST /api/full?...&save=1`,
+`POST /api/images/select?idx=N`, `POST /api/images/delete?idx=N`,
+`POST /api/images/rescan`. See [IMAGES.md](IMAGES.md). The response is the `/api/ui` JSON
 (including the refresh time).
 
 ### Apps

@@ -154,10 +154,18 @@ button:disabled{opacity:.45;cursor:default}
           <option value="hq">高清 4.1s</option>
         </select>
       </label>
+      <label><input type="checkbox" id="saveImg" checked> 存到 Flash</label>
       <button id="btnFull" class="primary">全屏刷新</button>
       <button id="btnRefresh">高清清残影 4.1s</button>
     </div>
     <p class="hint">上传后自动进入本地“图片”页；“返回/主页”回菜单。快速：0.6s，标准：1.0s，高清：4.1s；“高清清残影”使用 50Hz 波形。</p>
+  </section>
+
+  <section class="card">
+    <h2>图片库 <span id="imgCount" class="hint"></span></h2>
+    <div class="row"><button id="btnImgRefresh">刷新列表</button></div>
+    <div id="imgList" class="hint">—</div>
+    <p class="hint">存在 /ext/images，掉电不丢。设备上按 ←→ 切换。</p>
   </section>
 
   <section class="card" style="grid-column:1/-1">
@@ -421,9 +429,11 @@ $('btnFull').addEventListener('click',async()=>{
   try{
     setBusy(true);
     const mode=$('fullMode').value;
-    const j=await api('/api/full?mode='+mode,fullBits);
+    const sv=$('saveImg').checked?'&save=1':'';
+    const j=await api('/api/full?mode='+mode+sv,fullBits);
     log('全屏完成（'+mode+'）：设备 '+j.total+'ms（初始化 '+j.init+' / 数据 '+j.data+' / 刷屏 '+j.refresh+'），往返 '+j.client_ms+'ms','ok');
     await refreshRemote(true);
+    if($('saveImg').checked) loadImages();
   }catch(e){ log('全屏失败：'+e.message,'err'); }
   finally{ setBusy(false); }
 });
@@ -437,6 +447,32 @@ $('btnRefresh').addEventListener('click',async()=>{
   finally{ setBusy(false); }
 });
 
+async function loadImages(){
+  try{
+    const j=await api('/api/images');
+    $('imgCount').textContent='('+j.count+' 张)';
+    if(!j.count){ $('imgList').textContent='还没有保存的图片'; return; }
+    let h='';
+    for(const it of j.items){
+      h+='<div class="row" style="align-items:center;gap:6px;margin:2px 0">'
+        +'<span style="width:3em">'+(it.idx+1)+'</span>'
+        +'<code style="flex:1">'+it.name+'</code>'
+        +'<button data-show="'+it.idx+'">显示</button>'
+        +'<button data-del="'+it.idx+'">删除</button></div>';
+    }
+    $('imgList').innerHTML=h;
+    $('imgList').querySelectorAll('[data-show]').forEach(b=>b.onclick=async()=>{
+      try{ await api('/api/images/select?idx='+b.dataset.show, new Uint8Array(0), 'POST'); log('已切换图片','ok'); await refreshRemote(true); }
+      catch(e){ log('切换失败：'+e.message,'err'); }
+    });
+    $('imgList').querySelectorAll('[data-del]').forEach(b=>b.onclick=async()=>{
+      try{ await api('/api/images/delete?idx='+b.dataset.del, new Uint8Array(0), 'POST'); log('已删除','ok'); await loadImages(); await refreshRemote(true); }
+      catch(e){ log('删除失败：'+e.message,'err'); }
+    });
+  }catch(e){ log('图片库：'+e.message,'err'); }
+}
+$('btnImgRefresh').addEventListener('click',loadImages);
+
 async function poll(){
   try{
     const r=await fetch('/api/status',{cache:'no-store'});
@@ -447,6 +483,7 @@ async function poll(){
 }
 
 log('就绪：用方向键操作设备本地 UI，或拖入图片上传。');
+loadImages();
 refreshRemote(true);
 loadNote();
 loadHost();
