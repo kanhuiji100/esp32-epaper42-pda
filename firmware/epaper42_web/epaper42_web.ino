@@ -6,6 +6,7 @@
 #include "panel42.h"
 #include "storage_impl.h"
 #include "ui_impl.h"
+#include "keypad.h"
 #include "webpage.h"
 
 // ---- WiFi ----
@@ -648,6 +649,7 @@ static void startNetworkServices() {
 // setup() only kicks off WiFi.begin(); loop() polls here so the panel keeps
 // working (and the boot screen keeps updating) while the radio associates.
 static bool uiStarted = false;
+static bool keypadStarted = false;
 static uint32_t bootStartMs = 0;
 enum WifiBoot { WB_IDLE, WB_TRYING, WB_DONE };
 static WifiBoot wbState = WB_IDLE;
@@ -781,6 +783,25 @@ void loop() {
     uiStarted = true;
     ui::begin();                 // load notes, draw the home screen
     lastActivity = millis();
+  }
+
+  // Bring the keypad up once, after the UI is on screen (the auto-detect scan
+  // can take a second; it must not delay the first picture).
+  if (!keypadStarted) {
+    keypadStarted = true;
+    keypad::begin();
+  } else {
+    String k = keypad::poll();
+    if (k.length()) {
+      if (k == "refresh") {
+        panel42::Timings t;
+        panel42::refreshHq(t);          // slowest waveform: clears ghosting
+        Serial.println("kbd: full refresh (HQ)");
+      } else {
+        ui::key(k);
+      }
+      lastActivity = millis();
+    }
   }
 
   ui::tick();

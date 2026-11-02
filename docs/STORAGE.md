@@ -66,7 +66,7 @@ W25Q128 on the 19-pin header, using HSPI (separate from the panel VSPI bus):
 |---|---|
 | VCC | 3V3 |
 | GND | GND |
-| CS | IO22 |
+| CS | IO32 |
 | CLK | IO18 |
 | DI/MOSI | IO23 |
 | DO/MISO | IO19 |

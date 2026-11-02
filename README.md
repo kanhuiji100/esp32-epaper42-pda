@@ -16,6 +16,8 @@ The project also documents how the stock Waveshare loader was sped up from
 ## Highlights
 
 - **Local UI on the ESP32** — 400×300 1bpp framebuffer, GB2312 + ASCII bitmap font.
+- **I2C keypad** — a VK36N16I 4×4 touch keypad (SDA 21 / SCL 22) drives the whole
+  UI without the browser; auto-detected and remappable from the console.
 - **Fast boot** — the first picture is on the panel ~1.5 s after reset and the
   home screen ~3 s later; Wi-Fi associates in the background instead of holding
   a blank screen.
@@ -203,6 +205,7 @@ firmware/epaper42_web/
 ├── qrcodegen.h/.c     Nayuki QR Code generator (MIT)
 ├── games_impl.h       Gomoku + simplified Dou Dizhu
 ├── news_impl.h        Chinese RSS news reader (China News / ITHome)
+├── keypad.h           VK36N16I I2C keypad driver (autodetect + key map)
 ├── pet_impl.h         Electronic pet (state, decay, actions, UI)
 ├── pet_sprites.h      Generated 192×192 cat/fox sprites
 └── secrets.example.h  optional compile-time Wi-Fi template
@@ -225,6 +228,7 @@ docs/
 ├── GAMES.md
 ├── NEWS.md
 ├── PET.md
+├── KEYPAD.md
 └── images/
 ```
 

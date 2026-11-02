@@ -1,5 +1,16 @@
 # Changelog
 
+## v0.13.0 — 2026-11-02
+
+- **VK36N16I I2C keypad** support: address `0x65`, read the 2-byte key bitmask,
+  map to up/down/left/right/OK/Back/Home plus a full-refresh key.
+- Wiring: SDA GPIO21, SCL GPIO22, V 3V3, G GND.
+- Auto-detect: the driver scans candidate SDA/SCL pairs for `0x65` and saves the
+  pair to NVS; `kbd scan` / `kbd pins <sda> <scl>` / `kbd forget` console commands.
+- External flash **CS moved from GPIO22 to GPIO32** to free the standard I2C pair.
+- Dou Dizhu AI candidate buffer moved to the heap (DRAM headroom).
+- Docs: [KEYPAD.md](KEYPAD.md).
+
 ## v0.12.0 — 2026-11-02
 
 - Boot no longer blanks the panel while Wi-Fi associates. `setup()` now brings

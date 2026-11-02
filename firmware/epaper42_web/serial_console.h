@@ -150,6 +150,7 @@ static void printHelp() {
   Serial.println("  help | ?               this help");
   Serial.println("  log [on|off]           toggle web UI request logging");
   Serial.println("  fb                     base64-dump the 15 KB framebuffer");
+  Serial.println("  kbd [scan|pins <sda> <scl>|forget]  VK36N16I keypad");
   Serial.println("  status                 app/UI + network + panel state");
   Serial.println("  screen                 ASCII preview of the 400x300 framebuffer");
   Serial.println("  key up|down|left|right|ok|back|home");
@@ -306,6 +307,26 @@ static void handleLine(const String& raw) {
     lastActivity = millis();
     Serial.printf("app=%s\r\n", ui::appName());
     printStatus();
+    return;
+  }
+
+  if (cmd == "kbd" || cmd == "keypad") {
+    String sub = (argc >= 2) ? args[1] : "";
+    sub.toLowerCase();
+    if (sub == "scan") { keypad::scan(); keypad::savePins(); keypad::status(); }
+    else if (sub == "pins") {
+      if (argc < 4) { Serial.println("usage: kbd pins <sda> <scl>"); return; }
+      int sda = args[2].toInt(), scl = args[3].toInt();
+      if (keypad::usePins(sda, scl)) { keypad::savePins(); keypad::status(); }
+      else Serial.println("kbd: no 0x65 device on those pins");
+    } else if (sub == "forget") {
+      keypad::kp.begin("kbd", false); keypad::kp.clear(); keypad::kp.end();
+      Serial.println("kbd: saved pins cleared");
+    } else {
+      keypad::status();
+      Serial.println("  kbd scan | kbd pins <sda> <scl> | kbd forget");
+    }
+    lastActivity = millis();
     return;
   }
 

@@ -10,9 +10,11 @@ Waveshare **e-Paper ESP32 Driver Board**.
 - 3.3 V logic and panel supply; boost converter for panel rails.
 - USB serial console at **115200 8N1** for Wi-Fi provisioning and input simulation
   (see [SERIAL_CONSOLE.md](SERIAL_CONSOLE.md)).
-- Optional **W25Q128** (16 MB) on HSPI: CS IO22, CLK IO18, DI IO23, DO IO19,
+- Optional **W25Q128** (16 MB) on HSPI: CS **IO32**, CLK IO18, DI IO23, DO IO19,
   WP#/HOLD# 3V3; 3.3 V + 100 nF/10 µF, 10k CS pull-up. Mounted at `/ext`
   (see [STORAGE.md](STORAGE.md)).
+- **VK36N16I** 4×4 I2C keypad: SDA **IO21**, SCL **IO22**, V 3V3, G GND
+  (see [KEYPAD.md](KEYPAD.md)).
 
 ## Panel
 
@@ -35,6 +37,9 @@ Waveshare **e-Paper ESP32 Driver Board**.
 | DC | 27 | low = command, high = data |
 | CS_S | 2 | secondary chip select, held high |
 | EPD power enable | 33 | held high |
+
+Other free pins used by add-ons: keypad I2C on 21/22, external flash SPI on
+18/19/23/32.
 
 SPI is run at **10 MHz**, mode 0, MSB first. MISO is not used (the 4.2 has no
 readable ID); the driver passes GPIO36 as a dummy MISO to `SPI.begin()`.

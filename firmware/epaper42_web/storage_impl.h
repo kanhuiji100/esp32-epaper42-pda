@@ -31,18 +31,22 @@ String jsonEscape(const String& in) {
   return o;
 }
 
+// External W25Qxx on HSPI: SCK 18, MISO 19, MOSI 23, CS 32.
+// CS moved from 22 to 32 so the VK36N16I keypad can use the standard I2C pair
+// (SDA 21 / SCL 22).
+static const int PIN_EXT_CS = 32;
 bool probeExt(uint8_t id[3]) {
   SPIClass hspi(HSPI);
-  hspi.begin(18, 19, 23, 22);
-  pinMode(22, OUTPUT);
-  digitalWrite(22, HIGH);
+  hspi.begin(18, 19, 23, PIN_EXT_CS);
+  pinMode(PIN_EXT_CS, OUTPUT);
+  digitalWrite(PIN_EXT_CS, HIGH);
   hspi.beginTransaction(SPISettings(1000000, MSBFIRST, SPI_MODE0));
-  digitalWrite(22, LOW);
+  digitalWrite(PIN_EXT_CS, LOW);
   hspi.transfer(0x9F);                 // JEDEC ID
   id[0] = hspi.transfer(0);
   id[1] = hspi.transfer(0);
   id[2] = hspi.transfer(0);
-  digitalWrite(22, HIGH);
+  digitalWrite(PIN_EXT_CS, HIGH);
   hspi.endTransaction();
   hspi.end();
   return id[0] == 0xEF;                // Winbond W25Qxx
@@ -72,7 +76,7 @@ bool mountExt() {
   }
   esp_flash_spi_device_config_t dev = {};
   dev.host_id = SPI2_HOST;
-  dev.cs_io_num = 22;
+  dev.cs_io_num = PIN_EXT_CS;
   dev.io_mode = SPI_FLASH_FASTRD;
   dev.speed = ESP_FLASH_20MHZ;
   dev.input_delay_ns = 0;

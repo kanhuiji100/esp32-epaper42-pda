@@ -182,8 +182,15 @@ static uint8_t dPasses = 0;
 static uint8_t dSel[20];
 static int dCur = 0;
 static String dMsg;
-static DCard dCand[56][20];
-static uint8_t dCandN[56];
+// Candidate combos are only needed while the Dou Dizhu AI thinks, so keep them
+// on the heap instead of burning scarce DRAM for the whole session.
+static DCard (*dCand)[20] = nullptr;
+static uint8_t* dCandN = nullptr;
+static const int D_CAND_MAX = 56;
+static void dCandAlloc() {
+  if (!dCand) dCand = (DCard(*)[20])malloc((size_t)D_CAND_MAX * 20 * sizeof(DCard));
+  if (!dCandN) dCandN = (uint8_t*)malloc(D_CAND_MAX);
+}
 
 static String dRankStr(uint8_t r) {
   if (r <= 10) return String((int)r);
@@ -354,10 +361,12 @@ static void dPassTurn(int p) {
 
 static void dAiPlay(int p) {
   // collect candidates (static to keep the loop stack small)
+  dCandAlloc();
+  if (!dCand || !dCandN) return;
   DCard (*cand)[20] = dCand;
   uint8_t* cn = dCandN;
   int nc = 0;
-  #define ADDC(n) do { if (nc < 56) { cn[nc] = (n); nc++; } } while (0)
+  #define ADDC(n) do { if (nc < D_CAND_MAX) { cn[nc] = (n); nc++; } } while (0)
   uint8_t cnt[18] = {0};
   for (int i = 0; i < dN[p]; i++) cnt[dHand[p][i].r]++;
   // singles
