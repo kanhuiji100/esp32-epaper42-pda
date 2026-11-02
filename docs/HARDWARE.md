@@ -10,11 +10,45 @@ Waveshare **e-Paper ESP32 Driver Board**.
 - 3.3 V logic and panel supply; boost converter for panel rails.
 - USB serial console at **115200 8N1** for Wi-Fi provisioning and input simulation
   (see [SERIAL_CONSOLE.md](SERIAL_CONSOLE.md)).
-- Optional **W25Q128** (16 MB) on HSPI: CS **IO32**, CLK IO18, DI IO23, DO IO19,
-  WP#/HOLD# 3V3; 3.3 V + 100 nF/10 µF, 10k CS pull-up. Mounted at `/ext`
-  (see [STORAGE.md](STORAGE.md)).
+- Optional **W25Q128** (16 MB) on HSPI: **CLK IO18, MISO IO17, MOSI IO23,
+  CS IO32**; WP#/HOLD# 3V3; 3.3 V + 100 nF/10 µF, 10k CS pull-up. Mounted at
+  `/ext` (see [STORAGE.md](STORAGE.md)). MISO uses IO17 because IO19 exists on
+  the board (J4 pin 8) but is **not silkscreened** — see the connector table
+  below.
 - **VK36N16I** 4×4 I2C keypad: SDA **IO21**, SCL **IO22**, V 3V3, G GND
   (see [KEYPAD.md](KEYPAD.md)).
+
+## IO connectors
+
+The board breaks the ESP32 out to two 1×19 headers, **J3** (top edge) and **J4**
+(bottom edge). On the silkscreen only every other pin is labelled (the odd pins
+of J3 and the even pins of J4); the rest are printed but easy to miss. Full
+table from the schematic:
+
+| J3 pin | net | | J4 pin | net |
+|---:|---|---|---:|---|
+| 1 | 3V3 | | 1 | GND |
+| 2 | EN | | 2 | IO23 |
+| 3 | SVP (IO36) | | 3 | IO22 |
+| 4 | SVN (IO39) | | 4 | U0TX |
+| 5 | IO34 | | 5 | U0RX |
+| 6 | IO35 | | 6 | IO21 |
+| 7 | **IO32** | | 7 | GND |
+| 8 | IO33 | | 8 | **IO19** (unlabelled) |
+| 9 | IO25 | | 9 | **IO18** |
+| 10 | IO26 | | 10 | IO5 (unlabelled) |
+| 11 | IO27 | | 11 | **IO17** |
+| 12 | IO14 | | 12 | IO16 |
+| 13 | IO12 | | 13 | IO4 |
+| 14 | GND | | 14 | IO0 |
+| 15 | IO13 | | 15 | IO2 |
+| 16 | SD2 | | 16 | IO15 |
+| 17 | SD3 | | 17 | SD1 |
+| 18 | CMD | | 18 | SD0 |
+| 19 | 5V | | 19 | CLK |
+
+Bold = used by this project (18/23/32/17 for flash, 21/22 for the keypad; 13/14/
+15/25/26/27/2/33 go to the panel and are wired on-board).
 
 ## Panel
 

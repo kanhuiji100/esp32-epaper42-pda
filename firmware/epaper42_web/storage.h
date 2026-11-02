@@ -14,4 +14,8 @@ bool writeFile(const String& path, const uint8_t* data, size_t len);
 bool removeFile(const String& path);
 size_t fileSize(const String& path);
 bool pathOk(const String& path);
+// External-flash bring-up (pin assignment is stored in NVS).
+bool extProbe(String& out);
+String extPins();
+bool extSetPins(int clk, int miso, int mosi, int cs);
 }  // namespace storage

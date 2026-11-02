@@ -151,6 +151,7 @@ static void printHelp() {
   Serial.println("  log [on|off]           toggle web UI request logging");
   Serial.println("  fb                     base64-dump the 15 KB framebuffer");
   Serial.println("  kbd [scan|pins <sda> <scl>|forget]  VK36N16I keypad");
+  Serial.println("  flash [probe|pins <clk> <miso> <mosi> <cs>]  external W25Qxx");
   Serial.println("  status                 app/UI + network + panel state");
   Serial.println("  screen                 ASCII preview of the 400x300 framebuffer");
   Serial.println("  key up|down|left|right|ok|back|home");
@@ -307,6 +308,29 @@ static void handleLine(const String& raw) {
     lastActivity = millis();
     Serial.printf("app=%s\r\n", ui::appName());
     printStatus();
+    return;
+  }
+
+  if (cmd == "flash" || cmd == "ext") {
+    String sub = (argc >= 2) ? args[1] : "";
+    sub.toLowerCase();
+    if (sub == "pins") {
+      if (argc < 6) { Serial.println("usage: flash pins <clk> <miso> <mosi> <cs>"); return; }
+      storage::extSetPins(args[2].toInt(), args[3].toInt(),
+                          args[4].toInt(), args[5].toInt());
+      Serial.printf("flash: saved %s\r\n", storage::extPins().c_str());
+    } else if (sub == "probe") {
+      // fall through to the probe below
+    } else if (sub.length()) {
+      Serial.println("usage: flash [probe|pins <clk> <miso> <mosi> <cs>]");
+      return;
+    }
+    String r;
+    storage::extProbe(r);
+    Serial.printf("flash: %s -> %s\r\n", storage::extPins().c_str(), r.c_str());
+    Serial.println(storage::infoJson());
+    Serial.println("  note: pin changes take effect after reboot");
+    lastActivity = millis();
     return;
   }
 

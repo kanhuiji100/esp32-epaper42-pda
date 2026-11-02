@@ -1,5 +1,14 @@
 # Changelog
 
+## v0.13.1 — 2026-11-02
+
+- External flash **MISO moved from IO19 to IO17**: IO19 is present on the board
+  (J4 pin 8) but has no silkscreen, while P17 is clearly labelled.
+- Flash pin assignment is now stored in NVS and can be changed at runtime with
+  `flash pins <clk> <miso> <mosi> <cs>`; `flash probe` reads the JEDEC ID with
+  the current pins so the wiring can be checked before rebooting.
+- Documented the full J3/J4 IO connector pinout (including the unlabelled pins).
+
 ## v0.13.0 — 2026-11-02
 
 - **VK36N16I I2C keypad** support: address `0x65`, read the 2-byte key bitmask,

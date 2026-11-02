@@ -69,7 +69,7 @@ W25Q128 on the 19-pin header, using HSPI (separate from the panel VSPI bus):
 | CS | IO32 |
 | CLK | IO18 |
 | DI/MOSI | IO23 |
-| DO/MISO | IO19 |
+| DO/MISO | IO17 |
 | WP# / HOLD# | 3V3 |
 
 Add 100 nF + 10 µF at the chip, a 10k pull-up on CS, and 22–33 Ω series resistors

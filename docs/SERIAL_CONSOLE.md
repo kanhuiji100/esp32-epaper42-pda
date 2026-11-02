@@ -76,6 +76,7 @@ then falls back to `secrets.h`.
 | `pet [status\|feed\|play\|sleep\|clean\|touch\|work\|adopt cat\|fox\|name <n>\|reset\|save\|unadopt]` | electronic pet status/actions |
 | `log [on\|off]` | web UI request logging (off by default; `log` toggles) |
 | `kbd [scan\|pins <sda> <scl>\|forget]` | VK36N16I keypad status / wiring |
+| `flash [probe\|pins <clk> <miso> <mosi> <cs>]` | external W25Qxx JEDEC probe / pin assignment |
 | `fb` | base64-dump the 15 KB framebuffer for host-side PNG rendering |
 | `note` | print current note |
 | `note <text>` | set note (UTF-8, one line) and save to NVS |

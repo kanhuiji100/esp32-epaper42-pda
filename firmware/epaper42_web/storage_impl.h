@@ -21,6 +21,30 @@ String s_extId = "";
 uint32_t s_extSize = 0;
 esp_flash_t* s_extChip = nullptr;
 
+// External W25Qxx on HSPI. Defaults: SCK 18, MISO 17, MOSI 23, CS 32.
+// MISO uses IO17 because IO19 exists on the board (J4 pin 8) but is not
+// silkscreened, while P17 is clearly labelled.
+int s_clk = 18, s_miso = 17, s_mosi = 23, s_cs = 32;
+Preferences extPrefs;
+
+void pinsLoad() {
+  extPrefs.begin("ext", true);
+  s_clk  = extPrefs.getChar("clk",  18);
+  s_miso = extPrefs.getChar("miso", 17);
+  s_mosi = extPrefs.getChar("mosi", 23);
+  s_cs   = extPrefs.getChar("cs",   32);
+  extPrefs.end();
+}
+
+void pinsSave() {
+  extPrefs.begin("ext", false);
+  extPrefs.putChar("clk",  (int8_t)s_clk);
+  extPrefs.putChar("miso", (int8_t)s_miso);
+  extPrefs.putChar("mosi", (int8_t)s_mosi);
+  extPrefs.putChar("cs",   (int8_t)s_cs);
+  extPrefs.end();
+}
+
 String jsonEscape(const String& in) {
   String o;
   for (size_t i = 0; i < in.length(); i++) {
@@ -31,22 +55,18 @@ String jsonEscape(const String& in) {
   return o;
 }
 
-// External W25Qxx on HSPI: SCK 18, MISO 19, MOSI 23, CS 32.
-// CS moved from 22 to 32 so the VK36N16I keypad can use the standard I2C pair
-// (SDA 21 / SCL 22).
-static const int PIN_EXT_CS = 32;
 bool probeExt(uint8_t id[3]) {
   SPIClass hspi(HSPI);
-  hspi.begin(18, 19, 23, PIN_EXT_CS);
-  pinMode(PIN_EXT_CS, OUTPUT);
-  digitalWrite(PIN_EXT_CS, HIGH);
+  hspi.begin(s_clk, s_miso, s_mosi, s_cs);
+  pinMode(s_cs, OUTPUT);
+  digitalWrite(s_cs, HIGH);
   hspi.beginTransaction(SPISettings(1000000, MSBFIRST, SPI_MODE0));
-  digitalWrite(PIN_EXT_CS, LOW);
+  digitalWrite(s_cs, LOW);
   hspi.transfer(0x9F);                 // JEDEC ID
   id[0] = hspi.transfer(0);
   id[1] = hspi.transfer(0);
   id[2] = hspi.transfer(0);
-  digitalWrite(PIN_EXT_CS, HIGH);
+  digitalWrite(s_cs, HIGH);
   hspi.endTransaction();
   hspi.end();
   return id[0] == 0xEF;                // Winbond W25Qxx
@@ -64,9 +84,9 @@ bool mountExt() {
   Serial.printf("storage: external flash id=%s\r\n", idbuf);
 
   spi_bus_config_t bus = {};
-  bus.mosi_io_num = 23;
-  bus.miso_io_num = 19;
-  bus.sclk_io_num = 18;
+  bus.mosi_io_num = s_mosi;
+  bus.miso_io_num = s_miso;
+  bus.sclk_io_num = s_clk;
   bus.quadwp_io_num = -1;
   bus.quadhd_io_num = -1;
   bus.max_transfer_sz = 4096;
@@ -76,7 +96,7 @@ bool mountExt() {
   }
   esp_flash_spi_device_config_t dev = {};
   dev.host_id = SPI2_HOST;
-  dev.cs_io_num = PIN_EXT_CS;
+  dev.cs_io_num = s_cs;
   dev.io_mode = SPI_FLASH_FASTRD;
   dev.speed = ESP_FLASH_20MHZ;
   dev.input_delay_ns = 0;
@@ -114,6 +134,7 @@ bool mountExt() {
 }  // namespace
 
 void begin() {
+  pinsLoad();
   s_int = LittleFS.begin(true, "/int", 10, "spiffs");
   if (!s_int) {
     Serial.println("storage: internal LittleFS mount failed, formatting...");
@@ -131,6 +152,35 @@ void begin() {
 
 bool intReady() { return s_int; }
 bool extReady() { return s_ext; }
+
+// Bring-up helpers (console): read the JEDEC ID with the current pins, and
+// change/save the pin assignment.
+bool extProbe(String& out) {
+  uint8_t id[3] = {0, 0, 0};
+  if (!probeExt(id)) {
+    char b[96];
+    snprintf(b, sizeof(b), "no response (clk=%d miso=%d mosi=%d cs=%d)",
+             s_clk, s_miso, s_mosi, s_cs);
+    out = b;
+    return false;
+  }
+  char b[64];
+  snprintf(b, sizeof(b), "JEDEC %02X %02X %02X", id[0], id[1], id[2]);
+  out = b;
+  return true;
+}
+
+String extPins() {
+  char b[64];
+  snprintf(b, sizeof(b), "clk=%d miso=%d mosi=%d cs=%d", s_clk, s_miso, s_mosi, s_cs);
+  return String(b);
+}
+
+bool extSetPins(int clk, int miso, int mosi, int cs) {
+  s_clk = clk; s_miso = miso; s_mosi = mosi; s_cs = cs;
+  pinsSave();
+  return true;
+}
 
 bool pathOk(const String& path) {
   if (path.length() == 0 || path.length() > 160) return false;
