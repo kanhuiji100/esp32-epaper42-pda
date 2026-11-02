@@ -16,6 +16,9 @@ The project also documents how the stock Waveshare loader was sped up from
 ## Highlights
 
 - **Local UI on the ESP32** — 400×300 1bpp framebuffer, GB2312 + ASCII bitmap font.
+- **16 MB external flash** — a W25Q128 on HSPI is mounted at `/ext` with
+  directories, automatic parent creation and reboot-safe contents; `/int`
+  (384 KB internal LittleFS) stays for small files.
 - **I2C keypad** — a VK36N16I 4×4 touch keypad (SDA 21 / SCL 22) drives the whole
   UI without the browser; auto-detected and remappable from the console.
 - **Fast boot** — the first picture is on the panel ~1.5 s after reset and the

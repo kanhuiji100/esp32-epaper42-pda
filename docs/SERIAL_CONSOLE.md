@@ -77,6 +77,7 @@ then falls back to `secrets.h`.
 | `log [on\|off]` | web UI request logging (off by default; `log` toggles) |
 | `kbd [scan\|pins <sda> <scl>\|forget]` | VK36N16I keypad status / wiring |
 | `flash [probe\|pins <clk> <miso> <mosi> <cs>]` | external W25Qxx JEDEC probe / pin assignment |
+| `mkdir <path>` | create a directory on `/int` or `/ext` |
 | `fb` | base64-dump the 15 KB framebuffer for host-side PNG rendering |
 | `note` | print current note |
 | `note <text>` | set note (UTF-8, one line) and save to NVS |

@@ -419,6 +419,12 @@ static void handleLine(const String& raw) {
     }
     return;
   }
+  if (cmd == "mkdir") {
+    if (argc < 2) { Serial.println("usage: mkdir <path>"); return; }
+    Serial.println(storage::makeDir(args[1]) ? "mkdir: ok" : "mkdir: failed");
+    return;
+  }
+
   if (cmd == "rm") {
     if (argc < 2) { Serial.println("usage: rm <path>"); return; }
     Serial.println(storage::removeFile(args[1]) ? "rm: ok" : "rm: failed");

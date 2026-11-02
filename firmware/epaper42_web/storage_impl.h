@@ -5,6 +5,7 @@
 #include <stdio.h>
 #include <dirent.h>
 #include <sys/stat.h>
+#include <errno.h>
 #include "esp_flash.h"
 #include "esp_flash_spi_init.h"
 #include "esp_partition.h"
@@ -182,6 +183,29 @@ bool extSetPins(int clk, int miso, int mosi, int cs) {
   return true;
 }
 
+// Create every missing directory component of a file path, e.g.
+// /ext/books/a.txt -> mkdir /ext/books
+bool makeParents(const String& path) {
+  int slash = path.lastIndexOf('/');
+  if (slash <= 0) return true;
+  String dir = path.substring(0, slash);
+  if (dir == "/int" || dir == "/ext") return true;
+  int pos = dir.indexOf('/', 1);
+  while (pos > 0) {
+    String sub = dir.substring(0, pos);
+    if (sub.length() > 1) mkdir(sub.c_str(), 0777);
+    pos = dir.indexOf('/', pos + 1);
+  }
+  return mkdir(dir.c_str(), 0777) == 0 || errno == EEXIST;
+}
+
+bool makeDir(const String& path) {
+  if (!pathOk(path)) return false;
+  if (path == "/int" || path == "/ext") return true;
+  makeParents(path + "/x");
+  return mkdir(path.c_str(), 0777) == 0 || errno == EEXIST;
+}
+
 bool pathOk(const String& path) {
   if (path.length() == 0 || path.length() > 160) return false;
   if (!path.startsWith("/int") && !path.startsWith("/ext")) return false;
@@ -190,19 +214,38 @@ bool pathOk(const String& path) {
 }
 
 String infoJson() {
-  char buf[320];
+  unsigned extTotal = 0, extUsed = 0;
+  if (s_ext) {
+    size_t t = 0, u = 0;
+    if (esp_littlefs_info("ext", &t, &u) == ESP_OK) {
+      extTotal = (unsigned)t; extUsed = (unsigned)u;
+    }
+  }
+  char buf[384];
   snprintf(buf, sizeof(buf),
            "{\"ok\":1,\"int\":{\"ready\":%d,\"total\":%u,\"used\":%u},"
-           "\"ext\":{\"ready\":%d,\"id\":\"%s\",\"size\":%u}}",
+           "\"ext\":{\"ready\":%d,\"id\":\"%s\",\"size\":%u,"
+           "\"total\":%u,\"used\":%u,\"free\":%u}}",
            s_int ? 1 : 0,
            s_int ? (unsigned)LittleFS.totalBytes() : 0u,
            s_int ? (unsigned)LittleFS.usedBytes() : 0u,
-           s_ext ? 1 : 0, s_extId.c_str(), (unsigned)s_extSize);
+           s_ext ? 1 : 0, s_extId.c_str(), (unsigned)s_extSize,
+           extTotal, extUsed, extTotal > extUsed ? extTotal - extUsed : 0u);
   return String(buf);
 }
 
 String summary() {
   char buf[96];
+  if (s_ext) {
+    size_t t = 0, u = 0;
+    if (esp_littlefs_info("ext", &t, &u) == ESP_OK) {
+      snprintf(buf, sizeof(buf), "int %u/%uK ext %u/%uK",
+               (unsigned)(LittleFS.usedBytes() / 1024),
+               (unsigned)(LittleFS.totalBytes() / 1024),
+               (unsigned)(u / 1024), (unsigned)(t / 1024));
+      return String(buf);
+    }
+  }
   snprintf(buf, sizeof(buf), "int %u/%uK ext %s",
            s_int ? (unsigned)(LittleFS.usedBytes() / 1024) : 0u,
            s_int ? (unsigned)(LittleFS.totalBytes() / 1024) : 0u,
@@ -269,6 +312,7 @@ bool readText(const String& path, String& out, size_t maxLen) {
 
 bool writeFile(const String& path, const uint8_t* data, size_t len) {
   if (!pathOk(path)) return false;
+  makeParents(path);
   FILE* f = fopen(path.c_str(), "wb");
   if (!f) return false;
   size_t n = fwrite(data, 1, len, f);

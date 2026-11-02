@@ -1,5 +1,18 @@
 # Changelog
 
+## v0.14.0 — 2026-11-02
+
+- **External W25Q128 verified on hardware**: JEDEC `EF 40 18`, `/ext` mounts
+  automatically at boot, 16 MB, survives reboots.
+- Directory support: `POST /api/storage/mkdir`, console `mkdir`, and parent
+  directories are created automatically when uploading a file.
+- `/api/storage` now reports `/ext` `total`/`used`/`free` via
+  `esp_littlefs_info()`.
+- Faster HTTP body reads (4 KB chunks).
+- Measured: upload ~57 KB/s, download ~380 KB/s, `md5sum`-verified round trips.
+- Docs: [STORAGE.md](STORAGE.md) gains the verified wiring table and
+  performance numbers.
+
 ## v0.13.1 — 2026-11-02
 
 - External flash **MISO moved from IO19 to IO17**: IO19 is present on the board

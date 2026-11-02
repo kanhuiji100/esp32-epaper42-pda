@@ -11,6 +11,33 @@ The firmware has two storage areas:
 the JEDEC ID probe; if it is missing the firmware logs a warning and keeps
 running.
 
+## Wiring (verified on hardware)
+
+| W25Qxx module | ESP32 | Board header |
+|---|---|---|
+| VCC | 3V3 | J3 pin 1 |
+| GND | GND | J3 pin 14 / J4 pin 1 |
+| CLK | **IO18** | J4 pin 9 (`P18`) |
+| DO / MISO | **IO17** | J4 pin 11 (`P17`) |
+| DI / MOSI | **IO23** | J4 pin 2 (`P23`) |
+| CS | **IO32** | J3 pin 7 (`P32`) |
+
+`WP#`/`HOLD#` (if broken out) to 3V3. IO19 is the "official" MISO but it exists
+on the board as J4 pin 8 with **no silkscreen**, so IO17 is used instead.
+
+The pin assignment lives in NVS (namespace `ext`) and can be changed at runtime:
+
+```text
+> flash
+flash: clk=18 miso=17 mosi=23 cs=32 -> JEDEC EF 40 18
+{"ok":1,"int":{...},"ext":{"ready":1,"id":"EF4018","size":16777216,"total":16777216,"used":32768,"free":16744448}}
+> flash pins 18 17 23 32     # save a different assignment (reboot to apply)
+> flash probe                # read the JEDEC ID with the current pins
+```
+
+`EF 40 18` = Winbond W25Q128 (16 MB). A freshly formatted `/ext` reports
+`used` ≈ 8 KB (LittleFS metadata).
+
 ## Partition table
 
 The project uses `firmware/epaper42_web/partitions.csv` (no OTA):
@@ -36,13 +63,18 @@ arduino-cli compile --fqbn esp32:esp32:esp32 \
 
 | Method | Path | Result |
 |---|---|---|
-| GET | `/api/storage` | `{int:{ready,total,used}, ext:{ready,id,size}}` |
-| GET | `/api/storage/list?path=/int` | JSON directory listing |
-| GET | `/api/storage/file?path=/int/foo.txt` | raw file bytes |
-| POST | `/api/storage/file?path=/int/foo.txt` | body is written to the file (≤ 4 MB) |
-| DELETE | `/api/storage/file?path=/int/foo.txt` | remove the file |
+| Method | Path | Result |
+|---|---|---|
+| GET | `/api/storage` | `{int:{ready,total,used}, ext:{ready,id,size,total,used,free}}` |
+| GET | `/api/storage/list?path=/ext` | JSON directory listing (`dir:1` for folders) |
+| GET | `/api/storage/file?path=/ext/foo.txt` | raw file bytes |
+| POST | `/api/storage/file?path=/ext/foo.txt` | body is written to the file (≤ 4 MB); missing parent directories are created |
+| POST | `/api/storage/mkdir?path=/ext/books` | create a directory |
+| DELETE | `/api/storage/file?path=/ext/foo.txt` | remove the file |
 
-Paths must start with `/int` or `/ext`; `..` is rejected.
+Paths must start with `/int` or `/ext`; `..` is rejected. Sub-directories are
+supported and are created automatically on upload (`/ext/media/pics/a.bin` makes
+both levels).
 
 ## Serial console
 
@@ -56,7 +88,22 @@ write: /int/hello.txt (5 bytes)
 > cat /int/hello.txt
 hello
 > rm /int/hello.txt
+> mkdir /ext/books
+mkdir: ok
 ```
+
+## Measured performance
+
+On this board with the W25Q128 at 20 MHz and Wi-Fi at ~-40 dBm:
+
+| Operation | Throughput | 1 MB |
+|---|---:|---:|
+| Upload over HTTP (`POST /api/storage/file`) | ~57 KB/s | ~18 s |
+| Download over HTTP (`GET /api/storage/file`) | ~380 KB/s | ~2.8 s |
+
+The upload path is limited by the Wi-Fi receive path, not by the flash. A 15 KB
+image uploads in well under a second. Verified with `md5sum` round-trips and
+across a reboot (files, directories and contents all persist).
 
 ## External flash wiring
 

@@ -146,7 +146,9 @@ static bool readBody(WiFiClient& c, uint8_t* buf, int len) {
   int got = 0;
   uint32_t t0 = millis();
   while (got < len && millis() - t0 < 5000) {
-    int n = c.read(buf + got, (size_t)((len - got) < 1460 ? (len - got) : 1460));
+    size_t want = (size_t)(len - got);
+    if (want > 4096) want = 4096;
+    int n = c.read(buf + got, want);
     if (n > 0) got += n;
     else {
       if (!c.connected()) break;
@@ -376,6 +378,18 @@ void handleClient(WiFiClient& c) {
     return;
   }
 
+  if (path == "/api/storage/mkdir") {
+    String p;
+    if (!getParamStr(query, "path", p)) {
+      sendJson(c, 400, "{\"ok\":0,\"err\":\"need path\"}");
+      return;
+    }
+    p = urlDecode(p);
+    if (!storage::makeDir(p)) { sendJson(c, 400, "{\"ok\":0,\"err\":\"mkdir failed\"}"); return; }
+    sendJson(c, 200, "{\"ok\":1}");
+    return;
+  }
+
   if (path == "/api/storage/file") {
     String p;
     if (!getParamStr(query, "path", p)) {
@@ -392,6 +406,7 @@ void handleClient(WiFiClient& c) {
       return;
     }
     if (expect100) { c.print("HTTP/1.1 100 Continue\r\n\r\n"); }
+    storage::makeParents(p);
     FILE* f = fopen(p.c_str(), "wb");
     if (!f) {
       sendJson(c, 400, "{\"ok\":0,\"err\":\"open failed\"}");
