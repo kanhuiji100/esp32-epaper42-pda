@@ -1,5 +1,18 @@
 # Changelog
 
+## v0.18.0 — 2026-11-02
+
+- Settings page no longer uses a partial refresh for its once-a-minute update:
+  its diff (UP/HEAP/MODE/clock) spans almost the whole panel, and the weak
+  partial waveform left a ghost of the previous screen. It now does a full
+  refresh like the clock app. The generic partial threshold was also lowered to
+  45 000 px so a "partial" covering a third of the screen becomes a full refresh.
+- `/api/status` now reports `uptime`, `reset` and `last` (previous boot's reset
+  cause, persisted in NVS), and the boot banner prints them — this distinguishes
+  a terminal-induced reset from a firmware crash.
+- `tools/serial.sh`: opens the console with `-hupcl` so closing it does not
+  pulse the ESP32 auto-reset lines.
+
 ## v0.17.2 — 2026-11-02
 
 - Fixed Home navigation: the right-hand boundary still used the old 8-item

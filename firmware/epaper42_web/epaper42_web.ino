@@ -1,6 +1,7 @@
 // ESP32 + Waveshare 4.2" e-Paper (WFT0420CZ15 / UC8176)
 // Fast full refresh (~0.5-0.8s) and partial window refresh (~0.3s).
 #include <WiFi.h>
+#include <esp_system.h>
 #include <ESPmDNS.h>
 #include <Preferences.h>
 #include "panel42.h"
@@ -33,6 +34,24 @@ static bool netReady = false;
 static String gHostname = "epaper42";
 static bool hostnameSet(const String& name);   // defined with the Wi-Fi helpers
 
+
+static String gLastReset = "none";
+
+static const char* resetReasonName() {
+  switch (esp_reset_reason()) {
+    case ESP_RST_POWERON:  return "poweron";
+    case ESP_RST_EXT:      return "external";
+    case ESP_RST_SW:       return "software";
+    case ESP_RST_PANIC:    return "panic";
+    case ESP_RST_INT_WDT:  return "int_wdt";
+    case ESP_RST_TASK_WDT: return "task_wdt";
+    case ESP_RST_WDT:      return "wdt";
+    case ESP_RST_BROWNOUT: return "brownout";
+    case ESP_RST_DEEPSLEEP: return "deepsleep";
+    case ESP_RST_SDIO:     return "sdio";
+    default:               return "unknown";
+  }
+}
 
 // ---------------- HTTP helpers ----------------
 static String readLine(WiFiClient& c, uint32_t timeoutMs = 1000) {
@@ -252,13 +271,17 @@ void handleClient(WiFiClient& c) {
   if (method == "GET") {
     if (path == "/" || path == "/index.html") { sendPage(c); return; }
     if (path == "/api/status") {
-      char buf[256];
+      char buf[320];
       snprintf(buf, sizeof(buf),
-               "{\"ok\":1,\"ip\":\"%s\",\"host\":\"%s\",\"heap\":%lu,\"powered\":%d,\"mode\":\"%s\"}",
+               "{\"ok\":1,\"ip\":\"%s\",\"host\":\"%s\",\"heap\":%lu,\"powered\":%d,"
+               "\"mode\":\"%s\",\"uptime\":%lu,\"reset\":\"%s\",\"last\":\"%s\"}",
                WiFi.localIP().toString().c_str(), gHostname.c_str(),
                (unsigned long)ESP.getFreeHeap(),
                panel42::isPowered() ? 1 : 0,
-               panel42::modeName());
+               panel42::modeName(),
+               (unsigned long)(millis() / 1000),
+               resetReasonName(),
+               gLastReset.c_str());
       sendJson(c, 200, buf);
       return;
     }
@@ -835,10 +858,22 @@ static bool wifiService() {
 
 #include "serial_console.h"
 
+// Keep the reason of the *previous* boot in NVS: a crash or a reset-line pulse
+// otherwise leaves no trace once the device has rebooted.
+static void bootDiag() {
+  Preferences p;
+  p.begin("diag", false);
+  gLastReset = p.getString("rst", "none");
+  p.putString("rst", resetReasonName());
+  p.end();
+}
+
 void setup() {
+  bootDiag();
   Serial.begin(115200);
   delay(150);
-  Serial.println("\r\n=== E-Paper 4.2 PDA ===");
+  Serial.printf("\r\n=== E-Paper 4.2 PDA ===\r\n");
+  Serial.printf("reset: %s (previous %s)\r\n", resetReasonName(), gLastReset.c_str());
 
   panel42::begin();
   hostnameLoad();

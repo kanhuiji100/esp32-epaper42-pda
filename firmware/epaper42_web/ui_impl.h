@@ -719,7 +719,7 @@ void commit(bool forceFull) {
   int w = (maxB - minB + 1) * 8;
   int y0 = minY;
   int h = maxY - minY + 1;
-  if (forceFull || (long)w * h > 90000L) {
+  if (forceFull || (long)w * h > 45000L) {
     panel42::fullStd(fb, lastT);     // full waveform: darker, clears ghosting
   } else {
     panel42::partialFb(x0, y0, w, h, fb, lastT);
@@ -1297,6 +1297,16 @@ void tick() {
       lastMin = minute;
       render();
       panel42::fullStd(fb, lastT);   // one clean full refresh per minute
+    }
+  } else if (app == App::SETTINGS) {
+    // The settings page shows several live values (UP/HEAP/MODE), so its diff
+    // spans nearly the whole panel.  A partial refresh over that area cannot
+    // clear the previous frame and leaves a ghost of the last screen, so use a
+    // full refresh here just like the clock app.
+    if (minute != lastMin) {
+      lastMin = minute;
+      render();
+      panel42::fullStd(fb, lastT);
     }
   } else if (app != App::IMAGE && app != App::QR && app != App::GAMES && app != App::GOMOKU && app != App::DDZ && app != App::NEWS && app != App::PET) {
     if (minute != lastMin) {
