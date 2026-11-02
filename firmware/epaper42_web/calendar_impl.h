@@ -32,6 +32,89 @@ static int calDow(int y, int m, int d) {     // 0 = Sunday
   return (y + y/4 - y/100 + y/400 + t[m-1] + d) % 7;
 }
 
+
+// ---------------- Chinese lunar calendar ----------------
+static int calLeapMonth(int y) { return CAL_LUNAR_INFO[y - CAL_LUNAR_Y0] & 0xf; }
+static int calLeapDays(int y) {
+  if (!calLeapMonth(y)) return 0;
+  return (CAL_LUNAR_INFO[y - CAL_LUNAR_Y0] & 0x10000) ? 30 : 29;
+}
+static int calLunarMonthDays(int y, int m) {
+  return (CAL_LUNAR_INFO[y - CAL_LUNAR_Y0] & (0x10000 >> m)) ? 30 : 29;
+}
+static int calLunarYearDays(int y) {
+  uint32_t info = CAL_LUNAR_INFO[y - CAL_LUNAR_Y0];
+  int sum = 348;
+  for (uint32_t i = 0x8000; i > 0x8; i >>= 1) if (info & i) sum++;
+  return sum + calLeapDays(y);
+}
+
+static long calJdn(int y, int m, int d) {
+  int a = (14 - m) / 12, yy = y + 4800 - a, mm = m + 12 * a - 3;
+  return d + (153L * mm + 2) / 5 + 365L * yy + yy / 4 - yy / 100 + yy / 400 - 32045;
+}
+
+// Gregorian -> lunar.  Returns false when the year is outside 1900..2100.
+static bool calSolar2Lunar(int y, int m, int d, int& ly, int& lm, int& ld, bool& leap) {
+  if (y < CAL_LUNAR_Y0 || y >= CAL_LUNAR_Y0 + CAL_LUNAR_N) return false;
+  long offset = calJdn(y, m, d) - calJdn(1900, 1, 31);
+  int i = 1900, temp = 0;
+  while (i < 2101 && offset > 0) { temp = calLunarYearDays(i); offset -= temp; i++; }
+  if (offset < 0) { offset += temp; i--; }
+  ly = i;
+  int lp = calLeapMonth(i);
+  leap = false;
+  int mth = 1;
+  while (mth < 13 && offset > 0) {
+    if (lp > 0 && mth == lp + 1 && !leap) { mth--; leap = true; temp = calLeapDays(i); }
+    else { temp = calLunarMonthDays(i, mth); }
+    if (leap && mth == lp + 1) leap = false;
+    offset -= temp; mth++;
+  }
+  if (offset == 0 && lp > 0 && mth == lp + 1) {
+    if (leap) leap = false;
+    else { leap = true; mth--; }
+  }
+  if (offset < 0) { offset += temp; mth--; }
+  lm = mth;
+  ld = (int)offset + 1;
+  return true;
+}
+
+static String calLunarDayName(int d) {
+  static const char* pre[4] = {"初", "十", "廿", "三"};
+  static const char* unit[10] = {"十", "一", "二", "三", "四", "五", "六", "七", "八", "九"};
+  if (d == 10) return "初十";
+  if (d == 20) return "二十";
+  if (d == 30) return "三十";
+  if (d < 1 || d > 30) return "";
+  return String(pre[(d - 1) / 10]) + unit[d % 10];
+}
+
+// "九月廿四" / "闰六月十五"
+static String calLunarText(int y, int m, int d) {
+  int ly, lm, ld; bool leap;
+  if (!calSolar2Lunar(y, m, d, ly, lm, ld, leap)) return "";
+  String s;
+  if (leap) s += "闰";
+  s += CAL_LUNAR_MONTH[lm - 1]; s += "月";
+  s += calLunarDayName(ld);
+  return s;
+}
+
+// Compact 2-character label for a calendar cell: month name on day 1, else day.
+static String calLunarCell(int y, int m, int d) {
+  int ly, lm, ld; bool leap;
+  if (!calSolar2Lunar(y, m, d, ly, lm, ld, leap)) return "";
+  if (ld == 1) {
+    String s;
+    if (leap) s += "闰";
+    s += CAL_LUNAR_MONTH[lm - 1]; s += "月";
+    return s;
+  }
+  return calLunarDayName(ld);
+}
+
 static const char* CAL_WEEK[7] = {"日","一","二","三","四","五","六"};
 
 static const CalHol* calHolAt(int y, int m, int d, uint8_t* kind = nullptr) {
@@ -160,7 +243,7 @@ static void calMove(int days) {
 
 // ---------------------------------------------------------------- drawing
 static void calDrawCell(int x, int y, int w, int h, int day, bool selected, bool today,
-                        int termIdx, const CalHol* hol, int evCount) {
+                        int termIdx, const CalHol* hol, int evCount, const String& lunar) {
   if (selected) fillRect(x, y, w, h, INK);
   uint8_t ink = selected ? PAPER : INK;
   if (today && !selected) drawRect(x, y, w, h, INK);
@@ -178,6 +261,8 @@ static void calDrawCell(int x, int y, int w, int h, int day, bool selected, bool
     drawText(x + 3, ty, nm, 1, ink);
   } else if (termIdx >= 0) {
     drawText(x + 3, ty, CAL_TERM[termIdx], 1, ink);   // 2 chars = 32 px, fits 55
+  } else if (lunar.length()) {
+    drawText(x + 3, ty, lunar, 1, ink);        // 农历 day / month name
   } else if (evCount > 0) {
     drawText(x + 3, ty, String("•") + String(evCount), 1, ink);
   }
@@ -194,6 +279,8 @@ static void drawCalendarApp() {
     uint8_t kind = 0;
     const CalHol* hol = calHolAt(calY, calM, calD, &kind);
     int term = calTermAt(calY, calM, calD);
+    String lun = calLunarText(calY, calM, calD);
+    if (lun.length()) { drawText(16, y, String("农历 ") + lun, 1, INK); y += 20; }
     if (hol) {
       drawText(16, y, (String(hol->name) + (kind == 2 ? "（调休上班）" : "（放假）")), 1, INK);
       y += 20;
@@ -251,7 +338,8 @@ static void drawCalendarApp() {
     bool sel = (d == calD);
     bool tod = (calY == tY && calM == tM && d == tD);
     calDrawCell(cx, cy, cw - 1, chh - 1, d, sel, tod,
-                calTermAt(calY, calM, d), calHolAt(calY, calM, d), calCountEvents(calY, calM, d));
+                calTermAt(calY, calM, d), calHolAt(calY, calM, d), calCountEvents(calY, calM, d),
+                calLunarCell(calY, calM, d));
   }
 
   // bottom info for the selected day
@@ -261,6 +349,7 @@ static void drawCalendarApp() {
   int term = calTermAt(calY, calM, calD);
   int evn = calCountEvents(calY, calM, calD);
   info = String(calM) + "月" + String(calD) + "日 周" + CAL_WEEK[calDow(calY, calM, calD)];
+  { String lun = calLunarText(calY, calM, calD); if (lun.length()) { info += " "; info += lun; } }
   if (hol) { info += "  "; info += hol->name; if (kind == 2) info += "(班)"; }
   if (term >= 0) { info += "  "; info += CAL_TERM[term]; }
   if (evn > 0) { info += "  日程"; info += evn; }

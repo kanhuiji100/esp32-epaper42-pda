@@ -478,6 +478,7 @@ function calRenderMonth(j){
   const items=[];
   for(const d of j.days){
     let s=d.d+'日';
+    if(d.l) s+=' '+d.l;
     if(d.h) s+=' '+d.h+(d.k==2?'(班)':'');
     if(d.t) s+=' '+d.t;
     if(d.e) s+=' · '+d.e+'日程';

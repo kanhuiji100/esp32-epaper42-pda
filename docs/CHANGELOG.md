@@ -1,5 +1,13 @@
 # Changelog
 
+## v0.17.1 — 2026-11-02
+
+- Calendar now shows the **lunar date** (农历): the lunar day in every cell, the
+  lunar month name on the 1st, and the full date in the info bar and day detail.
+- Lunar conversion uses the classic 1900–2100 table (leap months handled);
+  validated against 2025/2026 Spring Festival and Mid-Autumn dates.
+- Web calendar card lists the lunar label for each day; month JSON gains `l`.
+
 ## v0.17.0 — 2026-11-02
 
 - New **Calendar** app: month grid with Chinese public holidays, 调休 workdays

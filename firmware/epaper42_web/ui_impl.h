@@ -814,12 +814,14 @@ String calendarMonthJson(int y, int m) {
     const CalHol* h = calHolAt(y, m, d, &kind);
     int t = calTermAt(y, m, d);
     int e = calCountEvents(y, m, d);
-    if (!h && t < 0 && e == 0) continue;
+    // always include the day so the client always has the lunar label
     if (o.charAt(o.length() - 1) != '[') o += ',';
     o += "{\"d\":"; o += d;
     if (h) { o += ",\"h\":\""; o += h->name; o += "\",\"k\":"; o += (int)kind; }
     if (t >= 0) { o += ",\"t\":\""; o += CAL_TERM[t]; o += "\""; }
     if (e > 0) { o += ",\"e\":"; o += e; }
+    String lun = calLunarCell(y, m, d);
+    if (lun.length()) { o += ",\"l\":\""; o += lun; o += "\""; }
     o += "}";
   }
   o += "]}";
